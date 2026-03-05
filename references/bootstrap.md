@@ -4,13 +4,26 @@
 
 ## 前置条件
 
-启动浏览器后台进程：
+### 1. 安装依赖并编译
+
+```bash
+cd <SKILL_DIR>
+pnpm install
+npx playwright install chromium
+pnpm build
+```
+
+- `pnpm install`：安装 Node.js 依赖
+- `npx playwright install chromium`：下载 Chromium 浏览器（Playwright 需要）
+- `pnpm build`：编译 TypeScript 到 `dist/`，后续所有脚本都从 `dist/` 运行
+
+### 2. 启动浏览器后台进程
 
 ```bash
 node <SKILL_DIR>/dist/scripts/start-browser.js &
 ```
 
-等待几秒让浏览器初始化完成。
+等待几秒让浏览器初始化完成。进程会在后台监听 Unix socket（`/tmp/genshin-skills.sock`），所有技能通过该 socket 通信。
 
 ---
 
