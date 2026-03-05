@@ -1,0 +1,106 @@
+{
+  "lastRunId": "535f0415-5a6e-4d1f-ac91-d269c26ffd71",
+  "lastRunAt": "2026-03-05T16:52:56.493Z",
+  "lastSuccess": false,
+  "totalRuns": 7,
+  "history": [
+    {
+      "runId": "bfa00fd2-58fa-4316-aada-9aecd870c020",
+      "trigger": "manual",
+      "startedAt": "2026-03-05T16:09:53.302Z",
+      "completedAt": "2026-03-05T16:10:23.479Z",
+      "results": [
+        {
+          "taskId": "welkin-moon",
+          "success": false,
+          "message": "fetch failed",
+          "durationMs": 30177
+        }
+      ]
+    },
+    {
+      "runId": "46968c58-fa44-403f-a6b6-1649eb954b8a",
+      "trigger": "manual",
+      "startedAt": "2026-03-05T16:19:21.426Z",
+      "completedAt": "2026-03-05T16:19:22.194Z",
+      "results": [
+        {
+          "taskId": "welkin-moon",
+          "success": false,
+          "message": "fetch failed",
+          "durationMs": 766
+        }
+      ]
+    },
+    {
+      "runId": "6eced89d-d006-4c39-8ea5-4c6811155f73",
+      "trigger": "manual",
+      "startedAt": "2026-03-05T16:27:13.696Z",
+      "completedAt": "2026-03-05T16:27:14.489Z",
+      "results": [
+        {
+          "taskId": "welkin-moon",
+          "success": false,
+          "message": "fetch failed",
+          "durationMs": 792
+        }
+      ]
+    },
+    {
+      "runId": "751fca11-fd53-432d-af33-3208fddbd64d",
+      "trigger": "manual",
+      "startedAt": "2026-03-05T16:34:53.866Z",
+      "completedAt": "2026-03-05T16:34:54.462Z",
+      "results": [
+        {
+          "taskId": "welkin-moon",
+          "success": false,
+          "message": "fetch failed",
+          "durationMs": 596
+        }
+      ]
+    },
+    {
+      "runId": "de8edf3c-a6e4-4221-805c-4630bc67bc6d",
+      "trigger": "manual",
+      "startedAt": "2026-03-05T16:35:16.768Z",
+      "completedAt": "2026-03-05T16:35:17.558Z",
+      "results": [
+        {
+          "taskId": "welkin-moon",
+          "success": false,
+          "message": "fetch failed",
+          "durationMs": 789
+        }
+      ]
+    },
+    {
+      "runId": "7ea90aa0-0059-4f2e-9615-98c4ad3f7de3",
+      "trigger": "manual",
+      "startedAt": "2026-03-05T16:35:37.648Z",
+      "completedAt": "2026-03-05T16:35:38.121Z",
+      "results": [
+        {
+          "taskId": "welkin-moon",
+          "success": false,
+          "message": "fetch failed",
+          "durationMs": 472
+        }
+      ]
+    },
+    {
+      "runId": "535f0415-5a6e-4d1f-ac91-d269c26ffd71",
+      "trigger": "manual",
+      "startedAt": "2026-03-05T16:52:55.421Z",
+      "completedAt": "2026-03-05T16:52:56.493Z",
+      "results": [
+        {
+          "taskId": "welkin-moon",
+          "success": false,
+          "message": "fetch failed",
+          "durationMs": 1071
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Genshin Auto</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .tab-active { border-bottom: 2px solid #3b82f6; color: #3b82f6; }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+    #log-container { font-family: monospace; font-size: 13px; }
+    .log-debug { color: #9ca3af; }
+    .log-info { color: #d1d5db; }
+    .log-warn { color: #f59e0b; }
+    .log-error { color: #ef4444; }
+  </style>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen">
+  <div class="max-w-4xl mx-auto p-6">
+    <h1 class="text-2xl font-bold mb-6">Genshin Auto</h1>
+
+    <!-- Tabs -->
+    <div class="flex border-b border-gray-700 mb-6">
+      <button class="tab-btn tab-active px-4 py-2 font-medium" data-tab="status">Status</button>
+      <button class="tab-btn px-4 py-2 font-medium text-gray-400 hover:text-gray-200" data-tab="logs">Logs</button>
+      <button class="tab-btn px-4 py-2 font-medium text-gray-400 hover:text-gray-200" data-tab="config">Config</button>
+    </div>
+
+    <!-- Status Panel -->
+    <div id="panel-status" class="tab-panel active">
+      <div class="flex items-center justify-between mb-4">
+        <div>
+          <span id="run-status" class="inline-block px-3 py-1 rounded-full text-sm bg-gray-700">Idle</span>
+        </div>
+        <button id="run-btn" onclick="triggerRun()" class="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded font-medium">
+          Run Now
+        </button>
+      </div>
+      <div id="last-run" class="bg-gray-800 rounded p-4">
+        <p class="text-gray-400">No runs yet</p>
+      </div>
+      <h3 class="text-lg font-semibold mt-6 mb-3">Tasks</h3>
+      <div id="task-list" class="space-y-2"></div>
+    </div>
+
+    <!-- Logs Panel -->
+    <div id="panel-logs" class="tab-panel">
+      <div id="log-container" class="bg-gray-800 rounded p-4 h-[600px] overflow-y-auto"></div>
+    </div>
+
+    <!-- Config Panel -->
+    <div id="panel-config" class="tab-panel">
+      <pre id="config-display" class="bg-gray-800 rounded p-4 overflow-auto text-sm"></pre>
+    </div>
+  </div>
+
+  <script>
+    // Tab switching
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(b => {
+          b.classList.remove('tab-active');
+          b.classList.add('text-gray-400');
+        });
+        btn.classList.add('tab-active');
+        btn.classList.remove('text-gray-400');
+        document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+        document.getElementById('panel-' + btn.dataset.tab).classList.add('active');
+      });
+    });
+
+    // WebSocket
+    let ws;
+    function connectWs() {
+      const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+      ws = new WebSocket(protocol + '//' + location.host + '/ws');
+      ws.onmessage = (e) => {
+        const msg = JSON.parse(e.data);
+        if (msg.type === 'log') {
+          appendLog(msg.data);
+        }
+      };
+      ws.onclose = () => setTimeout(connectWs, 3000);
+    }
+    connectWs();
+
+    function appendLog(entry) {
+      const container = document.getElementById('log-container');
+      const div = document.createElement('div');
+      div.className = 'log-' + entry.level;
+      div.textContent = `[${entry.timestamp}] [${entry.level.toUpperCase()}] ${entry.message}`;
+      container.appendChild(div);
+      container.scrollTop = container.scrollHeight;
+    }
+
+    // API calls
+    async function fetchStatus() {
+      try {
+        const res = await fetch('/api/status');
+        const data = await res.json();
+        const statusEl = document.getElementById('run-status');
+        statusEl.textContent = data.running ? 'Running' : 'Idle';
+        statusEl.className = 'inline-block px-3 py-1 rounded-full text-sm ' +
+          (data.running ? 'bg-yellow-600' : 'bg-gray-700');
+
+        const lastRunEl = document.getElementById('last-run');
+        if (data.lastRun) {
+          lastRunEl.innerHTML = data.lastRun.results.map(r =>
+            `<div class="flex justify-between py-1">
+              <span>${r.taskId}</span>
+              <span class="${r.success ? 'text-green-400' : 'text-red-400'}">${r.success ? 'OK' : 'FAIL'}</span>
+              <span class="text-gray-400">${r.durationMs}ms</span>
+            </div>`
+          ).join('');
+        }
+      } catch { /* ignore */ }
+    }
+
+    async function fetchTasks() {
+      try {
+        const res = await fetch('/api/tasks');
+        const tasks = await res.json();
+        document.getElementById('task-list').innerHTML = tasks.map(t =>
+          `<div class="bg-gray-800 rounded p-3 flex justify-between items-center">
+            <div>
+              <span class="font-medium">${t.name}</span>
+              <span class="text-gray-400 text-sm ml-2">${t.id}</span>
+            </div>
+            <span class="text-sm ${t.enabled ? 'text-green-400' : 'text-gray-500'}">${t.enabled ? 'Enabled' : 'Disabled'}</span>
+          </div>`
+        ).join('');
+      } catch { /* ignore */ }
+    }
+
+    async function fetchConfig() {
+      try {
+        const res = await fetch('/api/config');
+        const data = await res.json();
+        document.getElementById('config-display').textContent = JSON.stringify(data, null, 2);
+      } catch { /* ignore */ }
+    }
+
+    async function triggerRun() {
+      const btn = document.getElementById('run-btn');
+      btn.disabled = true;
+      btn.textContent = 'Starting...';
+      try {
+        await fetch('/api/run', { method: 'POST' });
+      } catch { /* ignore */ }
+      setTimeout(() => {
+        btn.disabled = false;
+        btn.textContent = 'Run Now';
+        fetchStatus();
+      }, 2000);
+    }
+
+    // Initial load
+    fetchStatus();
+    fetchTasks();
+    fetchConfig();
+    setInterval(fetchStatus, 10000);
+  </script>
+</body>
+</html>

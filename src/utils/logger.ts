@@ -1,3 +1,5 @@
+import { EventEmitter } from "node:events";
+
 type LogLevel = "debug" | "info" | "warn" | "error";
 
 const LEVELS: Record<LogLevel, number> = {
@@ -7,7 +9,7 @@ const LEVELS: Record<LogLevel, number> = {
   error: 3,
 };
 
-const SENSITIVE_KEYS = /password|token|secret|cookie|authorization/i;
+const SENSITIVE_KEYS = /password|token|secret|cookie|authorization|apiKey/i;
 
 function sanitizeValue(key: string, value: unknown): unknown {
   if (typeof value === "string" && SENSITIVE_KEYS.test(key)) {
@@ -20,7 +22,9 @@ function sanitizeArgs(args: unknown[]): unknown[] {
   return args.map((arg) => {
     if (arg && typeof arg === "object" && !Array.isArray(arg)) {
       const sanitized: Record<string, unknown> = {};
-      for (const [key, value] of Object.entries(arg as Record<string, unknown>)) {
+      for (const [key, value] of Object.entries(
+        arg as Record<string, unknown>,
+      )) {
         sanitized[key] = sanitizeValue(key, value);
       }
       return sanitized;
@@ -29,26 +33,53 @@ function sanitizeArgs(args: unknown[]): unknown[] {
   });
 }
 
-class Logger {
+export interface LogEntry {
+  timestamp: string;
+  level: LogLevel;
+  message: string;
+  args: unknown[];
+}
+
+class Logger extends EventEmitter {
   private level: LogLevel;
+  private muted = false;
 
   constructor() {
+    super();
     const envLevel = process.env["LOG_LEVEL"]?.toLowerCase();
     this.level =
       envLevel && envLevel in LEVELS ? (envLevel as LogLevel) : "info";
+  }
+
+  setLevel(level: LogLevel): void {
+    this.level = level;
+  }
+
+  mute(): void {
+    this.muted = true;
+  }
+
+  unmute(): void {
+    this.muted = false;
   }
 
   private log(level: LogLevel, message: string, ...args: unknown[]): void {
     if (LEVELS[level] < LEVELS[this.level]) return;
     const timestamp = new Date().toISOString();
     const sanitized = sanitizeArgs(args);
-    const prefix = `[${timestamp}] [${level.toUpperCase()}]`;
-    // Write to stderr so we don't interfere with stdout JSON output
-    if (sanitized.length > 0) {
-      console.error(prefix, message, ...sanitized);
-    } else {
-      console.error(prefix, message);
+
+    if (!this.muted) {
+      const prefix = `[${timestamp}] [${level.toUpperCase()}]`;
+      if (sanitized.length > 0) {
+        console.error(prefix, message, ...sanitized);
+      } else {
+        console.error(prefix, message);
+      }
     }
+
+    // Emit for WebSocket / TUI subscribers
+    const entry: LogEntry = { timestamp, level, message, args: sanitized };
+    this.emit("log", entry);
   }
 
   debug(message: string, ...args: unknown[]): void {

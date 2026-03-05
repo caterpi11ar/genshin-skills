@@ -1,50 +1,40 @@
-export class SkillError extends Error {
+export class AppError extends Error {
   constructor(
     message: string,
     public readonly code: string,
-    public readonly cause?: unknown,
+    public override readonly cause?: unknown,
   ) {
     super(message);
-    this.name = "SkillError";
+    this.name = "AppError";
   }
 }
 
-export class SessionNotFoundError extends SkillError {
-  constructor(sessionId: string) {
-    super(`Session "${sessionId}" not found`, "SESSION_NOT_FOUND");
-    this.name = "SessionNotFoundError";
+export class ConfigError extends AppError {
+  constructor(message: string, cause?: unknown) {
+    super(message, "CONFIG_ERROR", cause);
+    this.name = "ConfigError";
   }
 }
 
-export class SessionLimitError extends SkillError {
-  constructor(max: number) {
-    super(
-      `Maximum concurrent sessions (${max}) reached. Close a session first.`,
-      "SESSION_LIMIT",
-    );
-    this.name = "SessionLimitError";
+export class LoginError extends AppError {
+  constructor(message: string, cause?: unknown) {
+    super(message, "LOGIN_ERROR", cause);
+    this.name = "LoginError";
   }
 }
 
-export class NavigationError extends SkillError {
-  constructor(url: string, cause?: unknown) {
-    super(`Failed to navigate to "${url}"`, "NAVIGATION_ERROR", cause);
-    this.name = "NavigationError";
+export class TaskError extends AppError {
+  constructor(
+    message: string,
+    public readonly taskId: string,
+    cause?: unknown,
+  ) {
+    super(message, "TASK_ERROR", cause);
+    this.name = "TaskError";
   }
 }
 
-export class SelectorError extends SkillError {
-  constructor(selector: string, cause?: unknown) {
-    super(
-      `Element not found for selector "${selector}"`,
-      "SELECTOR_ERROR",
-      cause,
-    );
-    this.name = "SelectorError";
-  }
-}
-
-export class TimeoutError extends SkillError {
+export class TimeoutError extends AppError {
   constructor(operation: string, timeoutMs: number) {
     super(
       `Operation "${operation}" timed out after ${timeoutMs}ms`,
@@ -54,22 +44,16 @@ export class TimeoutError extends SkillError {
   }
 }
 
-export class ForbiddenURLError extends SkillError {
-  constructor(url: string) {
-    super(
-      `URL "${url}" uses a forbidden protocol`,
-      "FORBIDDEN_URL",
-    );
-    this.name = "ForbiddenURLError";
+export class SessionError extends AppError {
+  constructor(message: string, cause?: unknown) {
+    super(message, "SESSION_ERROR", cause);
+    this.name = "SessionError";
   }
 }
 
-export class SkillDisabledError extends SkillError {
-  constructor(skillName: string) {
-    super(
-      `Skill "${skillName}" is disabled`,
-      "SKILL_DISABLED",
-    );
-    this.name = "SkillDisabledError";
+export class QueueError extends AppError {
+  constructor(message: string, cause?: unknown) {
+    super(message, "QUEUE_ERROR", cause);
+    this.name = "QueueError";
   }
 }

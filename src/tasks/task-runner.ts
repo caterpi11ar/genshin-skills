@@ -1,0 +1,118 @@
+import { EventEmitter } from "node:events";
+import type { TaskDefinition, TaskResult, TaskContext } from "./base-task.js";
+import { retry } from "../utils/delay.js";
+import { logger } from "../utils/logger.js";
+
+export interface RunResult {
+  results: TaskResult[];
+  startedAt: Date;
+  completedAt: Date;
+}
+
+export class TaskRunner extends EventEmitter {
+  private tasks: TaskDefinition[] = [];
+
+  register(task: TaskDefinition): void {
+    this.tasks.push(task);
+  }
+
+  registerAll(tasks: TaskDefinition[]): void {
+    for (const task of tasks) {
+      this.register(task);
+    }
+  }
+
+  getEnabledTasks(enabledIds: string[]): TaskDefinition[] {
+    return this.tasks.filter((t) => enabledIds.includes(t.id));
+  }
+
+  async runAll(
+    ctx: Omit<TaskContext, "logger">,
+    enabledIds: string[],
+  ): Promise<RunResult> {
+    const enabled = this.getEnabledTasks(enabledIds);
+    const results: TaskResult[] = [];
+    const startedAt = new Date();
+
+    logger.info(`Starting task run: ${enabled.length} task(s) enabled`);
+
+    for (const task of enabled) {
+      const result = await this.runSingle(task, { ...ctx, logger });
+      results.push(result);
+    }
+
+    const completedAt = new Date();
+    const runResult: RunResult = { results, startedAt, completedAt };
+
+    this.emit("run:complete", runResult);
+    logger.info(
+      `Task run complete: ${results.filter((r) => r.success).length}/${results.length} succeeded`,
+    );
+
+    return runResult;
+  }
+
+  private async runSingle(
+    task: TaskDefinition,
+    ctx: TaskContext,
+  ): Promise<TaskResult> {
+    logger.info(`[${task.id}] Starting: ${task.name}`);
+    this.emit("task:start", { taskId: task.id, name: task.name });
+
+    const start = Date.now();
+
+    const execute = async (): Promise<TaskResult> => {
+      // Wrap with timeout
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(
+          () =>
+            reject(
+              new Error(
+                `Task "${task.id}" timed out after ${task.timeoutMs}ms`,
+              ),
+            ),
+          task.timeoutMs,
+        );
+      });
+
+      const result = await Promise.race([task.execute(ctx), timeoutPromise]);
+      return result;
+    };
+
+    try {
+      const retries = task.retries ?? 0;
+      let result: TaskResult;
+
+      if (retries > 0) {
+        result = await retry(execute, {
+          retries,
+          delayMs: 2000,
+          onRetry: (attempt) => {
+            logger.warn(`[${task.id}] Retry attempt ${attempt}`);
+          },
+        });
+      } else {
+        result = await execute();
+      }
+
+      this.emit("task:complete", result);
+      logger.info(`[${task.id}] Completed: ${result.message}`);
+      return result;
+    } catch (err) {
+      const durationMs = Date.now() - start;
+      const error = err instanceof Error ? err : new Error(String(err));
+      const result: TaskResult = {
+        taskId: task.id,
+        success: false,
+        message: error.message,
+        durationMs,
+        completedAt: new Date(),
+        error: { name: error.name, message: error.message },
+      };
+
+      this.emit("task:complete", result);
+      logger.error(`[${task.id}] Failed: ${error.message}`);
+      return result;
+    }
+  }
+}
