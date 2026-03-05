@@ -1,6 +1,10 @@
 node_modules/
-dist/
+src/
+test/
 tmp/
 cookies.json
 pnpm-lock.yaml
+tsconfig.json
+vitest.config.mts
 *.png
+*.tsbuildinfo

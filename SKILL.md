@@ -33,7 +33,6 @@ Browser automation skills for LLMs — 33 atomic Playwright-based browser operat
 # Install
 npm install
 npx playwright install chromium
-npm run build
 
 # Start browser (background)
 node <SKILL_DIR>/dist/scripts/start-browser.js &
