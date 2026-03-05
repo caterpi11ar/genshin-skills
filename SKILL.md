@@ -109,25 +109,9 @@ node <SKILL_DIR>/dist/scripts/stop-browser.js
 
 ## Architecture
 
-```
-src/
-├── scripts/        # start-browser, run-skill, stop-browser
-├── core/           # types, SessionManager, SkillRegistry, SkillRunner
-├── skills/         # one file per skill (33 total)
-└── utils/          # logger, errors, sanitize, args
-```
+The browser runs as a long-lived background process (`start-browser.js`) that listens on a Unix domain socket. You must start it before invoking any skill. `run-skill.js` connects to the socket, sends a command, and prints JSON results to stdout. `stop-browser.js` sends a shutdown command for graceful cleanup.
 
-The browser runs as a long-lived background process (`start-browser.js`) that listens on a Unix domain socket.
-The `run-skill.js` script connects to the socket, sends commands, and prints JSON results to stdout.
-`stop-browser.js` sends a shutdown command for graceful cleanup.
-
-## Security
-
-- **URL allowlist**: Only `http://` and `https://` protocols are permitted. `file://`, `javascript:`, `chrome://`, and `data:` URLs are blocked.
-- **Selector limits**: CSS selectors are length-limited to prevent abuse.
-- **Log redaction**: Sensitive values (passwords, tokens, cookies) are automatically redacted in logs.
-- **Session isolation**: Each session has its own browser context with separate cookies and storage.
-- **Idle cleanup**: Sessions are automatically closed after 30 minutes of inactivity.
+**Constraints**: Only `http://` and `https://` URLs are allowed. Sessions auto-close after 30 minutes of inactivity.
 
 ## References
 
