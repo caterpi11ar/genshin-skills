@@ -15,7 +15,7 @@ const config: Config = {
   baseUrl: '/',
 
   organizationName: 'caterpi11ar',
-  projectName: 'genshin-impact-claw',
+  projectName: 'giclaw',
 
   onBrokenLinks: 'throw',
 
@@ -31,7 +31,7 @@ const config: Config = {
         docs: {
           sidebarPath: './sidebars.ts',
           editUrl:
-            'https://github.com/caterpi11ar/genshin-impact-claw/tree/main/docs/',
+            'https://github.com/caterpi11ar/giclaw/tree/main/docs/',
         },
         blog: false,
         theme: {
@@ -55,7 +55,7 @@ const config: Config = {
           label: '文档',
         },
         {
-          href: 'https://github.com/caterpi11ar/genshin-impact-claw',
+          href: 'https://github.com/caterpi11ar/giclaw',
           label: 'GitHub',
           position: 'right',
         },
@@ -82,7 +82,7 @@ const config: Config = {
           items: [
             {
               label: 'GitHub',
-              href: 'https://github.com/caterpi11ar/genshin-impact-claw',
+              href: 'https://github.com/caterpi11ar/giclaw',
             },
           ],
         },

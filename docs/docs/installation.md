@@ -30,8 +30,8 @@ giclaw init
 推荐使用 `pnpm`。
 
 ```bash
-git clone https://github.com/caterpi11ar/genshin-impact-claw.git
-cd genshin-impact-claw
+git clone https://github.com/caterpi11ar/giclaw.git
+cd giclaw
 
 pnpm install
 pnpm build
