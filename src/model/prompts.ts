@@ -3,13 +3,13 @@
  * Pure functions — no side effects, no dependencies.
  */
 
-import type { RecentAction } from "./types.js";
+import type { RecentAction, TaskDescription } from "./types.js";
 
 export function findCoordinatesPrompt(goal: string): string {
   return [
     `我的目标是：${goal}`,
     `请分析这张截图，找到我应该点击的交互元素（如按钮、链接、图标等），`,
-    `返回该元素中心点的像素坐标，格式为纯 JSON: {"x": <number>, "y": <number>}。`,
+    `返回该元素中心点的坐标，格式为纯 JSON: {"x": <number>, "y": <number>}。`,
     `如果截图中没有可以完成该目标的交互元素，返回 {"x": -1, "y": -1}。`,
     `只返回 JSON，不要任何其他文字或 markdown。`,
   ].join("");
@@ -20,34 +20,48 @@ export function checkConditionPrompt(condition: string): string {
 }
 
 export function planNextActionPrompt(
-  goal: string,
+  goal: string | TaskDescription,
   recentActions?: RecentAction[],
 ): string {
-  const parts = [
-    `你正在帮我完成以下任务：${goal}\n\n`,
-    `请分析这张截图，判断当前状态，并决定下一步操作。\n\n`,
+  const parts: string[] = [];
+
+  // Goal section: structured or plain string
+  if (typeof goal === "string") {
+    parts.push(`你正在帮我完成以下任务：${goal}\n\n`);
+    parts.push(`请分析这张截图，判断当前状态，并决定下一步操作。\n\n`);
+  } else {
+    parts.push(`【任务背景】\n${goal.background}\n\n`);
+    parts.push(`【任务目标】\n${goal.goal}\n\n`);
+    parts.push(`请分析截图，判断当前状态，决定下一步。\n\n`);
+
+    if (goal.knownIssues.length > 0) {
+      parts.push(`【已知问题及处理方法】\n`);
+      goal.knownIssues.forEach((issue, i) => {
+        parts.push(`  ${i + 1}. ${issue}\n`);
+      });
+      parts.push(`\n`);
+    }
+  }
+
+  // Common sections
+  parts.push(
     `【画面信息】\n`,
-    `- 视口分辨率：1280×720 像素（坐标范围 x: 0-1279, y: 0-719）\n`,
-    `- 截图与视口像素一一对应，你返回的坐标将直接用于鼠标点击\n\n`,
-    `【重要约束】\n`,
-    `- 如果页面正在排队、加载、连接中，必须选择 "wait" 等待，绝对不要点击「退出排队」「取消排队」「取消」「退出」等中断按钮。\n`,
-    `- 如果页面显示排队进度（如「排队中」「前方X人」「预计等待」），这是正常流程，耐心等待即可。\n`,
-    `- 只有在明确需要推进任务时才点击，不确定时优先选择 "wait"。\n\n`,
+    `- 坐标系：使用 0-999 的归一化坐标（x 和 y 各 0-999），系统会自动转换为实际像素\n`,
+    `- 截图显示的是完整视口内容\n\n`,
     `【坐标精度要求】\n`,
     `- 你必须返回目标元素的精确中心点坐标，不是弹窗的中心，而是你想点击的那个具体按钮/图标的中心。\n`,
-    `- 关闭按钮（×）通常是 15-25 像素的小图标，紧贴弹窗矩形右上角。先目测弹窗的右边界和上边界，关闭按钮就在那个角上。\n`,
-    `- 例：如果弹窗右边界 x≈770、上边界 y≈230，则关闭按钮约在 (760, 240) 附近，而不是弹窗中心 (607, 343)。\n`,
+    `- 关闭按钮（×）通常是小图标，紧贴弹窗矩形右上角。先目测弹窗的右边界和上边界，关闭按钮就在那个角上。\n`,
     `- 对于普通按钮，坐标应在按钮文字的正中心。\n\n`,
     `【弹窗处理策略】\n`,
     `如果截图中出现弹窗/对话框/引导窗口：\n`,
-    `1. 首先精确定位关闭按钮（×）——它在弹窗矩形右上角，通常距弹窗边框 5-15 像素内\n`,
+    `1. 首先精确定位关闭按钮（×）——它在弹窗矩形右上角\n`,
     `2. 如果找不到关闭按钮，尝试点击弹窗内的确认/知道了/已了解按钮\n`,
     `3. 如果都不行，按 Escape 键：{"action": "press-key", "key": "Escape"}\n`,
-    `4. 如果 Escape 无效，点击弹窗外部的空白区域（如屏幕角落 (10, 10) 或 (1270, 10)）\n`,
+    `4. 如果 Escape 无效，点击弹窗外部的空白区域（如屏幕角落 (8, 8) 或 (992, 8)）\n`,
     `5. 绝对不要反复点击弹窗内容区域的中心——那里通常没有可交互元素\n\n`,
-  ];
+  );
 
-  // Inject recent action history so the model can self-correct
+  // Recent action history
   if (recentActions && recentActions.length > 0) {
     parts.push(`【最近操作记录】（最近 ${recentActions.length} 步）\n`);
     for (const a of recentActions) {
@@ -77,7 +91,7 @@ export function planNextActionPrompt(
           `你现在必须选择一个完全不同的操作：\n`,
           `- 仔细重新观察弹窗边框，精确定位右上角关闭按钮（坐标应与 (${last.x}, ${last.y}) 差距很大）\n`,
           `- 或按 Escape 键：{"action": "press-key", "key": "Escape", "reason": "..."}\n`,
-          `- 或点击弹窗外部空白区域（如角落 (10, 10)）\n`,
+          `- 或点击弹窗外部空白区域（如角落 (8, 8)）\n`,
           `- 禁止再次返回 (${last.x}, ${last.y}) 附近的坐标！\n\n`,
         );
       }

@@ -133,7 +133,10 @@ export class Gateway implements IGateway {
       await loginFlow(session, this.config);
 
       const page = session.getPage();
-      const model = new VisionModel(this.config.model);
+      const model = new VisionModel({
+        ...this.config.model,
+        viewport: this.config.browser.viewport,
+      });
       const enabledIds = taskIds ?? this.config.tasks.enabled;
 
       const result = await this.taskRunner.runAll(

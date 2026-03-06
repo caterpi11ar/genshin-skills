@@ -2,6 +2,8 @@ export interface VisionModelConfig {
   name: string;
   baseUrl: string;
   apiKey: string;
+  family?: string;
+  viewport?: { width: number; height: number };
 }
 
 export interface Coordinates {
@@ -42,6 +44,12 @@ export interface RecentAction {
   reason: string;
 }
 
+export interface TaskDescription {
+  background: string;
+  goal: string;
+  knownIssues: string[];
+}
+
 export interface IVisionModel {
   analyze(imageBase64: string, prompt: string): Promise<string>;
   findCoordinates(
@@ -50,7 +58,7 @@ export interface IVisionModel {
   ): Promise<Coordinates | null>;
   planNextAction(
     imageBase64: string,
-    goal: string,
+    goal: string | TaskDescription,
     recentActions?: RecentAction[],
   ): Promise<ActionPlan>;
   checkCondition(imageBase64: string, condition: string): Promise<boolean>;

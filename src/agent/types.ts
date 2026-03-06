@@ -1,11 +1,11 @@
 import type { Page } from "playwright";
-import type { IVisionModel } from "../model/types.js";
+import type { IVisionModel, TaskDescription } from "../model/types.js";
 import type { TranscriptWriter } from "../memory/transcript.js";
 
 export interface AgentContext {
   page: Page;
   model: IVisionModel;
-  goal: string;
+  goal: string | TaskDescription;
   timeoutMs: number;
   transcript?: TranscriptWriter;
   screenshotDir?: string;
