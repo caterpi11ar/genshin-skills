@@ -8,3 +8,4 @@ dist/
 coverage/
 cookies.json
 tmp/
+data/

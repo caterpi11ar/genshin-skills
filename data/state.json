@@ -1,8 +1,8 @@
 {
-  "lastRunId": "535f0415-5a6e-4d1f-ac91-d269c26ffd71",
-  "lastRunAt": "2026-03-05T16:52:56.493Z",
+  "lastRunId": "07e23c18-9fff-4117-a3b2-a268119372ef",
+  "lastRunAt": "2026-03-06T04:46:36.438Z",
   "lastSuccess": false,
-  "totalRuns": 7,
+  "totalRuns": 11,
   "history": [
     {
       "runId": "bfa00fd2-58fa-4316-aada-9aecd870c020",
@@ -99,6 +99,62 @@
           "success": false,
           "message": "fetch failed",
           "durationMs": 1071
+        }
+      ]
+    },
+    {
+      "runId": "430f7819-900a-405b-b08c-08b8b2ee12c0",
+      "trigger": "manual",
+      "startedAt": "2026-03-06T04:17:07.887Z",
+      "completedAt": "2026-03-06T04:17:37.896Z",
+      "results": [
+        {
+          "taskId": "welkin-moon",
+          "success": false,
+          "message": "page.screenshot: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - taking page screenshot\u001b[22m\n\u001b[2m  - waiting for fonts to load...\u001b[22m\n",
+          "durationMs": 30008
+        }
+      ]
+    },
+    {
+      "runId": "5c24de09-ad40-4612-945e-07d29586b506",
+      "trigger": "manual",
+      "startedAt": "2026-03-06T04:41:31.727Z",
+      "completedAt": "2026-03-06T04:42:03.022Z",
+      "results": [
+        {
+          "taskId": "welkin-moon",
+          "success": false,
+          "message": "Vision API returned empty response",
+          "durationMs": 31295
+        }
+      ]
+    },
+    {
+      "runId": "6312ff6c-f97c-40ec-8c8d-6179a8043e61",
+      "trigger": "manual",
+      "startedAt": "2026-03-06T04:43:17.951Z",
+      "completedAt": "2026-03-06T04:44:00.085Z",
+      "results": [
+        {
+          "taskId": "welkin-moon",
+          "success": false,
+          "message": "Vision API returned empty response",
+          "durationMs": 42134
+        }
+      ]
+    },
+    {
+      "runId": "07e23c18-9fff-4117-a3b2-a268119372ef",
+      "trigger": "manual",
+      "startedAt": "2026-03-06T04:45:57.278Z",
+      "completedAt": "2026-03-06T04:46:36.438Z",
+      "results": [
+        {
+          "taskId": "welkin-moon",
+          "success": false,
+          "message": "Vision API returned empty response",
+          "durationMs": 39158
         }
       ]
     }
