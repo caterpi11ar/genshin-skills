@@ -10,3 +10,6 @@ coverage/
 cookies.json
 tmp/
 data/
+docs/node_modules/
+docs/build/
+docs/.docusaurus/

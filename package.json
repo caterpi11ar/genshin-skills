@@ -18,7 +18,10 @@
     "dev": "tsx watch src/cli.ts",
     "start": "node dist/cli.js",
     "start:daemon": "node dist/cli.js daemon",
-    "test": "vitest run"
+    "test": "vitest run",
+    "docs:dev": "pnpm --dir docs start",
+    "docs:build": "pnpm --dir docs build",
+    "docs:serve": "pnpm --dir docs serve"
   },
   "dependencies": {
     "@fastify/static": "^8.0.0",
