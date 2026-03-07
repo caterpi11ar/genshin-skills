@@ -1,12 +1,11 @@
-import type { ActionPlan } from '../model/types.js'
-
 export interface TranscriptEntry {
   step: number
   timestamp: string
-  screenshotPath?: string
-  plan: ActionPlan
+  method?: string
+  prompt?: string
   result: 'executed' | 'done' | 'error'
   errorMessage?: string
+  screenshotPath?: string
 }
 
 export interface RunSummary {

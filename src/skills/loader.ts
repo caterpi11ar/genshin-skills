@@ -1,5 +1,4 @@
-import type { TaskDescription } from '../model/types.js'
-import type { SkillDefinition } from './types.js'
+import type { SkillDefinition, SkillStep, StepMethod } from './types.js'
 import { readdir, readFile } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import matter from 'gray-matter'
@@ -14,7 +13,31 @@ const frontmatterSchema = z.object({
   retries: z.number().default(1),
 })
 
-function parseTaskDescription(markdown: string): TaskDescription {
+const VALID_METHODS = new Set<StepMethod>(['aiAct', 'aiTap', 'aiWaitFor', 'aiAssert', 'aiBoolean', 'keyPress'])
+
+function parseSteps(text: string): SkillStep[] {
+  return text.split('\n')
+    .map(line => line.trim())
+    .filter(line => line.startsWith('- '))
+    .map((line) => {
+      const content = line.slice(2) // remove "- "
+      const colonIdx = content.indexOf(': ')
+      if (colonIdx === -1)
+        return null
+      const method = content.slice(0, colonIdx) as StepMethod
+      if (!VALID_METHODS.has(method))
+        return null
+      const prompt = content.slice(colonIdx + 2)
+      return { method, prompt }
+    })
+    .filter((s): s is SkillStep => s != null)
+}
+
+function parseSkillBody(markdown: string): {
+  steps: SkillStep[]
+  background?: string
+  knownIssues?: string[]
+} {
   const sections = new Map<string, string>()
   let currentHeading = ''
 
@@ -29,8 +52,9 @@ function parseTaskDescription(markdown: string): TaskDescription {
     }
   }
 
-  const background = (sections.get('background') ?? '').trim()
-  const goal = (sections.get('goal') ?? '').trim()
+  const steps = parseSteps(sections.get('steps') ?? '')
+
+  const background = (sections.get('background') ?? '').trim() || undefined
 
   const knownIssuesRaw = (sections.get('known issues') ?? '').trim()
   const knownIssues = knownIssuesRaw
@@ -38,7 +62,11 @@ function parseTaskDescription(markdown: string): TaskDescription {
     .map(line => line.replace(/^- /, '').trim())
     .filter(Boolean)
 
-  return { background, goal, knownIssues }
+  return {
+    steps,
+    background,
+    knownIssues: knownIssues.length > 0 ? knownIssues : undefined,
+  }
 }
 
 export async function loadSkills(dirs: string[]): Promise<SkillDefinition[]> {
@@ -66,11 +94,13 @@ export async function loadSkills(dirs: string[]): Promise<SkillDefinition[]> {
 
       const { data, content: body } = matter(content)
       const frontmatter = frontmatterSchema.parse(data)
-      const taskDescription = parseTaskDescription(body)
+      const { steps, background, knownIssues } = parseSkillBody(body)
 
       skills.push({
         ...frontmatter,
-        taskDescription,
+        steps,
+        background,
+        knownIssues,
         sourcePath: skillFile,
       })
     }

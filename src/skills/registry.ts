@@ -1,6 +1,6 @@
 import type { TaskContext, TaskDefinition, TaskResult } from '../tasks/base-task.js'
 import type { SkillDefinition } from './types.js'
-import { runAgentLoop } from '../agent/agent-loop.js'
+import { executeSteps } from '../agent/step-executor.js'
 import { PATHS } from '../config/paths.js'
 import { loadSkills } from './loader.js'
 
@@ -31,17 +31,16 @@ export class SkillRegistry {
         retries: skill.retries,
 
         async execute(ctx: TaskContext): Promise<TaskResult> {
-          const { page, model, logger, transcript, screenshotDir } = ctx
           const start = Date.now()
 
           try {
-            const result = await runAgentLoop({
-              page,
-              model,
-              goal: skill.taskDescription,
+            const result = await executeSteps({
+              page: ctx.page,
+              steps: skill.steps,
+              modelConfig: ctx.modelConfig,
               timeoutMs: skill.timeoutMs,
-              transcript,
-              screenshotDir: screenshotDir ?? PATHS.screenshotDir,
+              transcript: ctx.transcript,
+              screenshotDir: ctx.screenshotDir ?? PATHS.screenshotDir,
               onProgress: ctx.onProgress,
             })
 
@@ -50,14 +49,12 @@ export class SkillRegistry {
               success: result.success,
               message: result.reason,
               durationMs: result.durationMs,
-              screenshot:
-              result.screenshotPaths.at(-1),
               completedAt: new Date(),
             }
           }
           catch (err) {
             const error = err instanceof Error ? err : new Error(String(err))
-            logger.error(`[${skill.id}] Error: ${error.message}`)
+            ctx.logger.error(`[${skill.id}] Error: ${error.message}`)
 
             return {
               taskId: skill.id,

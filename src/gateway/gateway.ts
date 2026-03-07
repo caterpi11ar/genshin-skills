@@ -9,7 +9,6 @@ import { loginFlow } from '../browser/login.js'
 import { SessionManager } from '../browser/session-manager.js'
 import { StateStore } from '../memory/state-store.js'
 import { TranscriptWriter } from '../memory/transcript.js'
-import { VisionModel } from '../model/vision-model.js'
 import { TaskQueue } from '../queue/task-queue.js'
 import { SkillRegistry } from '../skills/registry.js'
 import { TaskRunner } from '../tasks/task-runner.js'
@@ -189,11 +188,19 @@ export class Gateway implements IGateway {
       this.emitProgress('running', pipelineStart)
 
       const page = session.getPage()
-      const model = new VisionModel({
-        ...this.config.model,
-        viewport: this.config.browser.viewport,
-        locale: this.config.locale,
-      })
+      const modelConfig: Record<string, string> = {
+        MIDSCENE_MODEL_NAME: this.config.model.name,
+        OPENAI_BASE_URL: this.config.model.baseUrl,
+        OPENAI_API_KEY: this.config.model.apiKey,
+      }
+      // Map family to midscene's provider flags
+      const family = this.config.model.family.toLowerCase()
+      if (family === 'gemini')
+        modelConfig.MIDSCENE_USE_GEMINI = 'true'
+      else if (family === 'qwen-vl')
+        modelConfig.MIDSCENE_USE_QWEN_VL = 'true'
+      else if (family === 'doubao')
+        modelConfig.MIDSCENE_USE_DOUBAO_VISION = 'true'
       const enabledIds = taskIds ?? this.config.tasks.enabled
 
       const onProgress = (step: number, _elapsed: number, action: string, reason: string) => {
@@ -202,7 +209,7 @@ export class Gateway implements IGateway {
       }
 
       const result = await this.taskRunner.runAll(
-        { page, model, config: this.config, transcript, screenshotDir: join(this.config.memory.dataDir, 'screenshots'), onProgress },
+        { page, modelConfig, config: this.config, transcript, screenshotDir: join(this.config.memory.dataDir, 'screenshots'), onProgress },
         enabledIds,
       )
 

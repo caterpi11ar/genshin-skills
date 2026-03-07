@@ -1,15 +1,15 @@
 import type { Page } from 'playwright'
 import type { TranscriptWriter } from '../memory/transcript.js'
-import type { IVisionModel, TaskDescription } from '../model/types.js'
+import type { SkillStep } from '../skills/types.js'
 
-export interface AgentContext {
+export interface StepContext {
   page: Page
-  model: IVisionModel
-  goal: string | TaskDescription
+  steps: SkillStep[]
+  modelConfig: Record<string, string>
   timeoutMs: number
   transcript?: TranscriptWriter
   screenshotDir?: string
-  onProgress?: (step: number, elapsed: number, action: string, reason: string) => void
+  onProgress?: (step: number, elapsed: number, method: string, prompt: string) => void
 }
 
 export interface AgentResult {
@@ -17,5 +17,4 @@ export interface AgentResult {
   reason: string
   steps: number
   durationMs: number
-  screenshotPaths: string[]
 }

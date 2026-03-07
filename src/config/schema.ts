@@ -42,6 +42,7 @@ export const appConfigSchema = z.object({
       name: z.string().default(''),
       baseUrl: z.string().default(''),
       apiKey: z.string().default(''),
+      family: z.string().default(''),
     })
     .default({}),
 

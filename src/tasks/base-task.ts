@@ -1,12 +1,11 @@
 import type { Page } from 'playwright'
 import type { AppConfig } from '../config/schema.js'
 import type { TranscriptWriter } from '../memory/transcript.js'
-import type { IVisionModel } from '../model/types.js'
 import type { logger } from '../utils/logger.js'
 
 export interface TaskContext {
   page: Page
-  model: IVisionModel
+  modelConfig: Record<string, string>
   config: AppConfig
   logger: typeof logger
   transcript?: TranscriptWriter
