@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <a href="https://giclaw.cn">文档</a> · <a href="https://giclaw.cn/docs/getting-started">快速开始</a> · <a href="https://giclaw.cn/docs/skills/built-in-skills">技能列表</a>
+  <a href="https://giclaw.cn">文档</a> · <a href="https://giclaw.cn/docs/getting-started">快速开始</a> · <a href="https://giclaw.cn/docs/skills/built-in-skills">技能列表</a> · <a href="https://giclaw.cn/docs/changelog">更新日志</a>
 </p>
 
 ---

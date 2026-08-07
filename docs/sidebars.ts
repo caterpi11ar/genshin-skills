@@ -8,7 +8,7 @@ const sidebars: SidebarsConfig = {
     'cli',
     'daemon-mode',
     'architecture',
-    'bettergi-comparison',
+    'roadmap',
     {
       type: 'category',
       label: '技能系统',
@@ -18,6 +18,7 @@ const sidebars: SidebarsConfig = {
         'skills/built-in-skills',
       ],
     },
+    'changelog',
     'contributing',
     'faq',
   ],

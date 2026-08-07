@@ -25,6 +25,12 @@ pnpm typecheck
 
 构建产物输出到 `build/`。合并文档修改前至少运行一次 `pnpm build`，以检查断链、MDX 和页面编译错误。
 
+## 内容维护
+
+- 功能、行为、配置、依赖、兼容性或能力状态变化，应先更新 `docs/changelog.md` 的“待发布”部分。
+- 同步检查根目录 README、快速开始、配置、CLI、能力状态和 FAQ 是否受影响。
+- 不在文档中写入真实 API Key、Cookie、账号信息或本地运行记录。
+
 ## 部署
 
 ```bash

@@ -59,6 +59,11 @@ const config: Config = {
           label: '文档',
         },
         {
+          to: '/docs/changelog',
+          label: '更新日志',
+          position: 'left',
+        },
+        {
           href: 'https://github.com/caterpi11ar/giclaw',
           label: 'GitHub',
           position: 'right',
@@ -78,6 +83,10 @@ const config: Config = {
             {
               label: '技能系统',
               to: '/docs/skills/overview',
+            },
+            {
+              label: '更新日志',
+              to: '/docs/changelog',
             },
           ],
         },
