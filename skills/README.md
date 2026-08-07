@@ -51,9 +51,9 @@ giclaw run --no-headless --tasks my-skill
 |---|---|---|
 | `welkin-moon` | 启用 | 已通过 |
 | `claim-mail` | 启用 | 已通过 |
-| `battle-pass-claim` | 关闭 | 已通过 |
-| `claim-achievements` | 关闭 | 已通过 |
-| `claim-event-rewards` | 关闭 | 已通过 |
+| `battle-pass-claim` | 启用 | 已通过 |
+| `claim-achievements` | 启用 | 已通过 |
+| `claim-event-rewards` | 启用 | 已通过 |
 | `expedition-collect` | 关闭 | 暂停，未完成领取与再次派遣闭环 |
 
-推荐使用 `daily` 运行月卡和邮件，或使用 `rewards` 运行全部 5 个已验收任务。默认 `full` 流程仍包含暂停能力，现阶段不建议直接运行。
+默认直接运行全部 5 个已验收任务；使用 `daily` 可以只运行月卡和邮件，`rewards` 可显式选择完整奖励流程。默认 `full` 流程仍包含暂停能力，现阶段不建议直接运行。

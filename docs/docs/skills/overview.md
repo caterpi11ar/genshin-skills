@@ -21,12 +21,12 @@ skills/<skill-id>/SKILL.md
 |----|------|----------|--------------|
 | `welkin-moon` | 月卡每日领取 | 启用 | 已通过 |
 | `claim-mail` | 邮件领取 | 启用 | 已通过 |
-| `battle-pass-claim` | 纪行奖励领取 | 关闭 | 已通过 |
-| `claim-achievements` | 成就奖励领取 | 关闭 | 已通过 |
-| `claim-event-rewards` | 活动奖励领取 | 关闭 | 已通过 |
+| `battle-pass-claim` | 纪行奖励领取 | 启用 | 已通过 |
+| `claim-achievements` | 成就奖励领取 | 启用 | 已通过 |
+| `claim-event-rewards` | 活动奖励领取 | 启用 | 已通过 |
 | `expedition-collect` | 探索派遣收取与再次派遣 | 关闭 | 暂停，尚未完成真实闭环 |
 
-所有技能按依赖展开后的顺序在同一浏览器会话中依次执行。`welkin-moon` 负责启动游戏，其他内置技能通过 `dependsOn` 声明此前置条件。默认状态只决定常规运行集合，不等同于验收结果：默认仅启用 `welkin-moon` 和 `claim-mail`，另外 3 个已验收的奖励任务可通过 `rewards` 流程运行。
+所有技能按依赖展开后的顺序在同一浏览器会话中依次执行。`welkin-moon` 负责启动游戏，其他内置技能通过 `dependsOn` 声明此前置条件。5 个已通过真实账号验收的奖励任务默认全部启用；`daily` 可以只运行月卡和邮件。
 
 探索派遣能力当前暂停，不在 `rewards` 中。`full` 的默认定义仍包含它，因此现阶段不建议直接运行 `full`。
 

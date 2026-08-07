@@ -2,7 +2,7 @@
 id: claim-event-rewards
 name: Claim Event Rewards
 description: Open the events overview and claim rewards that are already unlocked.
-enabled: false
+enabled: true
 timeoutMs: 600000
 retries: 1
 dependsOn:

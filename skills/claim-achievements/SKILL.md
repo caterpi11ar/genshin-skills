@@ -2,7 +2,7 @@
 id: claim-achievements
 name: Claim Achievement Rewards
 description: Open the achievements interface and claim all available Primogem rewards.
-enabled: false
+enabled: true
 timeoutMs: 300000
 retries: 1
 dependsOn:

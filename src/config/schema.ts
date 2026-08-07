@@ -58,6 +58,9 @@ export const appConfigSchema = z.object({
       enabled: z.array(z.string()).min(1).default([
         'welkin-moon',
         'claim-mail',
+        'claim-achievements',
+        'claim-event-rewards',
+        'battle-pass-claim',
       ]),
       skillsDirs: z.array(z.string()).min(1).default([PATHS.builtinSkillsDir, './skills', PATHS.skillsDir]),
       routines: z.record(z.array(z.string()).min(1)).default({

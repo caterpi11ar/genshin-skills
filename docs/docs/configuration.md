@@ -26,7 +26,7 @@ title: 配置
     "stream": true
   },
   "tasks": {
-    "enabled": ["welkin-moon", "claim-mail"],
+    "enabled": ["welkin-moon", "claim-mail", "claim-achievements", "claim-event-rewards", "battle-pass-claim"],
     "skillsDirs": ["./skills"],
     "routines": {
       "daily": ["welkin-moon", "claim-mail"],
@@ -82,14 +82,14 @@ title: 配置
 
 | 配置项 | 说明 | 默认值 |
 |--------|------|--------|
-| `tasks.enabled` | 默认执行的技能 ID 列表 | `["welkin-moon", "claim-mail"]` |
+| `tasks.enabled` | 默认执行的技能 ID 列表 | 5 个已验收奖励任务 |
 | `tasks.skillsDirs` | 技能目录搜索路径 | `["<内置技能目录>", "./skills", "~/.giclaw/skills"]` |
 | `tasks.routines` | 命名一条龙流程；用 `--routine <name>` 运行 | `daily`、`rewards`、`full` |
 
 默认命名流程的含义：
 
-- `daily`：月卡 + 邮件，也是默认启用集合。
-- `rewards`：月卡、邮件、成就、活动和纪行；这 5 个任务均已通过真实账号验收，是当前推荐的完整奖励流程。
+- `daily`：只运行月卡和邮件的轻量流程。
+- `rewards`：月卡、邮件、成就、活动和纪行；与默认启用集合一致，是完整奖励流程。
 - `full`：在 `rewards` 基础上加入探索派遣。该能力当前暂停，默认 schema 尚未移除它，因此现阶段应使用 `rewards`，或在自己的 `tasks.routines.full` 中显式调整。
 
 ### 调度

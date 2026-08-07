@@ -2,7 +2,7 @@
 id: battle-pass-claim
 name: Battle Pass Rewards Claim
 description: Open the battle pass (Gnostic Hymn) interface and claim all available rewards.
-enabled: false
+enabled: true
 timeoutMs: 300000
 retries: 1
 dependsOn:

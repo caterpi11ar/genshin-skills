@@ -52,15 +52,16 @@ giclaw run                   # 后续运行，自动执行
 |------|------|----------|--------------|
 | `welkin-moon` | 启动云游戏，领取月卡每日奖励 | 启用 | 已通过 |
 | `claim-mail` | 打开邮箱，一键领取所有邮件附件 | 启用 | 已通过 |
-| `battle-pass-claim` | 打开纪行，领取等级奖励 | 关闭 | 已通过 |
-| `claim-achievements` | 领取已完成成就奖励 | 关闭 | 已通过 |
-| `claim-event-rewards` | 领取已解锁活动奖励 | 关闭 | 已通过 |
+| `battle-pass-claim` | 打开纪行，领取等级奖励 | 启用 | 已通过 |
+| `claim-achievements` | 领取已完成成就奖励 | 启用 | 已通过 |
+| `claim-event-rewards` | 领取已解锁活动奖励 | 启用 | 已通过 |
 | `expedition-collect` | 收取探索派遣并重新派遣 | 关闭 | 暂停，尚未完成领取与再次派遣闭环 |
 
 ```bash
 giclaw skills                 # 查看技能、依赖、一条龙流程和原子操作
-giclaw run --routine daily    # 月卡 + 邮件
-giclaw run --routine rewards  # 运行已通过真实账号验收的 5 个任务
+giclaw run                    # 默认运行 5 个已验收任务
+giclaw run --routine daily    # 仅运行月卡 + 邮件
+giclaw run --routine rewards  # 显式运行完整奖励流程
 ```
 
 `full` 流程当前仍包含已暂停的 `expedition-collect`，不建议直接运行；需要完整奖励领取时使用 `rewards`。
