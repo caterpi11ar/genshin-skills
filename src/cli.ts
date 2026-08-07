@@ -6,6 +6,7 @@ import { loadConfig } from './config/loader.js'
 import { initStateDir, PATHS } from './config/paths.js'
 import { Gateway } from './gateway/gateway.js'
 import { startGateway } from './gateway/lifecycle.js'
+import { STEP_METHODS } from './skills/types.js'
 import { logger } from './utils/logger.js'
 
 const program = new Command()
@@ -16,6 +17,7 @@ program
   .version('0.3.0')
   .option('-c, --config <path>', 'config file path')
   .option('-t, --tasks <ids...>', 'task IDs to run')
+  .option('-r, --routine <name>', 'named routine to run')
   .option('--headless', 'force headless mode')
   .option('--no-headless', 'force visible mode')
   .option('--dry-run', 'validate config only, do not execute')
@@ -27,6 +29,27 @@ program
   .action(async () => {
     const opts = program.opts()
     await runOnce(opts)
+  })
+
+program
+  .command('skills')
+  .description('List validated skills, routines, and atomic operations')
+  .action(async () => {
+    const opts = program.opts()
+    const config = await loadConfig({ configPath: opts.config as string | undefined })
+    const gateway = new Gateway(config)
+    await gateway.init()
+
+    logger.info('Atomic operations:')
+    logger.info(`  ${STEP_METHODS.join(', ')}`)
+    logger.info('Skills:')
+    for (const skill of gateway.getSkillSummaries()) {
+      const dependencies = skill.dependsOn.length ? `; depends on ${skill.dependsOn.join(', ')}` : ''
+      logger.info(`  ${skill.id} — ${skill.steps} step(s)${dependencies}`)
+    }
+    logger.info('Routines:')
+    for (const [name, ids] of Object.entries(config.tasks.routines))
+      logger.info(`  ${name}: ${ids.join(' -> ')}`)
   })
 
 program
@@ -92,59 +115,79 @@ program
     }
   })
 
-async function checkModelConfig(): Promise<boolean> {
-  const { isModelConfigured } = await import('./config/wizard.js')
-  return isModelConfigured()
+function isModelConfigured(config: Awaited<ReturnType<typeof loadConfig>>): boolean {
+  return Boolean(config.model.apiKey && config.model.baseUrl && config.model.name)
 }
 
 async function runOnce(opts: Record<string, unknown>): Promise<void> {
-  // Config check — prompt setup wizard if not configured
-  if (!(await checkModelConfig())) {
-    const isTTY = process.stdin.isTTY && process.stdout.isTTY
-    if (isTTY) {
-      logger.warn(
-        'Model not configured. Starting setup wizard...',
-      )
-      const { runSetupWizard } = await import('./config/wizard.js')
-      await runSetupWizard()
-      // Re-check after wizard
-      if (!(await checkModelConfig())) {
-        logger.error('Model still not configured. Aborting.')
-        process.exit(1)
-      }
-    }
-    else {
-      logger.error(
-        'Model not configured. Run `giclaw init` to set up your API key and model.',
-      )
-      process.exit(1)
-    }
-  }
-
   const cliOverrides: Record<string, unknown> = {}
   if (opts.headless !== undefined) {
     cliOverrides.browser = { headless: opts.headless as boolean }
   }
 
-  const config = await loadConfig({
+  let config = await loadConfig({
     configPath: opts.config as string | undefined,
     cliOverrides,
   })
+
+  // Config check — prompt setup wizard if the resolved config is not configured.
+  if (!isModelConfigured(config)) {
+    const isTTY = process.stdin.isTTY && process.stdout.isTTY
+    if (isTTY && !opts.config) {
+      logger.warn(
+        'Model not configured. Starting setup wizard...',
+      )
+      const { runSetupWizard } = await import('./config/wizard.js')
+      await runSetupWizard()
+      config = await loadConfig({ cliOverrides })
+      if (!isModelConfigured(config)) {
+        logger.error('Model still not configured. Aborting.')
+        process.exitCode = 1
+        return
+      }
+    }
+    else {
+      logger.error(
+        opts.config
+          ? `Model not configured in ${String(opts.config)}.`
+          : 'Model not configured. Run `giclaw init` to set up your API key and model.',
+      )
+      process.exitCode = 1
+      return
+    }
+  }
 
   logger.setLevel(config.logLevel)
   if (opts.verbose) {
     logger.setLevel('debug')
   }
 
-  if (opts.dryRun) {
-    logger.info('Dry run — config validated successfully:')
-    logger.info(JSON.stringify(config, null, 2))
-    return
-  }
-
   const gateway = new Gateway(config)
   await gateway.init()
-  const taskIds = opts.tasks as string[] | undefined
+  const requestedTasks = opts.tasks as string[] | undefined
+  const routineName = opts.routine as string | undefined
+  if (requestedTasks && routineName) {
+    logger.error('Use either --tasks or --routine, not both.')
+    process.exitCode = 1
+    return
+  }
+  if (routineName && !config.tasks.routines[routineName]) {
+    logger.error(`Unknown routine "${routineName}". Available: ${Object.keys(config.tasks.routines).join(', ')}`)
+    process.exitCode = 1
+    return
+  }
+  const taskIds = requestedTasks ?? (routineName ? config.tasks.routines[routineName] : undefined)
+  // Resolve once up front to validate explicit CLI selections and show the
+  // dependency-expanded order in dry-run mode.
+  const resolvedTasks = gateway.getTaskRunner().getEnabledTasks(taskIds ?? config.tasks.enabled)
+
+  if (opts.dryRun) {
+    logger.info('Dry run — config and skills validated successfully.')
+    logger.info(`Execution order: ${resolvedTasks.map(task => task.id).join(' -> ')}`)
+    logger.info(`Atomic operations available: ${STEP_METHODS.length}`)
+    logger.info('No browser was launched and no model API request was made.')
+    return
+  }
 
   // Real-time progress in TTY mode
   const isTTY = process.stderr.isTTY
@@ -223,14 +266,6 @@ async function runDaemon(
   opts: Record<string, unknown>,
   daemonOpts: Record<string, unknown>,
 ): Promise<void> {
-  // Config check — daemon mode cannot run interactive wizard
-  if (!(await checkModelConfig())) {
-    logger.error(
-      'Model not configured. Run `giclaw init` to set up your API key and model.',
-    )
-    process.exit(1)
-  }
-
   const cliOverrides: Record<string, unknown> = {}
   if (opts.headless !== undefined) {
     cliOverrides.browser = { headless: opts.headless as boolean }
@@ -244,6 +279,13 @@ async function runDaemon(
     configPath: opts.config as string | undefined,
     cliOverrides,
   })
+
+  // Daemon mode cannot run an interactive setup wizard.
+  if (!isModelConfigured(config)) {
+    logger.error('Model not configured. Run `giclaw init` to set up your API key and model.')
+    process.exitCode = 1
+    return
+  }
 
   logger.setLevel(config.logLevel)
   if (opts.verbose) {

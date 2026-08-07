@@ -139,10 +139,15 @@ export async function runSetupWizard(): Promise<void> {
     }
 
     existing.locale = locale
+    const existingModel = existing.model && typeof existing.model === 'object'
+      ? existing.model as Record<string, unknown>
+      : {}
     existing.model = {
+      ...existingModel,
       name: modelName,
       baseUrl,
       apiKey,
+      family: providerValue === CUSTOM_PROVIDER_VALUE ? '' : providerValue,
     }
 
     await writeFile(PATHS.configPath, `${JSON.stringify(existing, null, 2)}\n`, 'utf-8')

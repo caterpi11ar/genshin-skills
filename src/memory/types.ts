@@ -6,6 +6,7 @@ export interface TranscriptEntry {
   result: 'executed' | 'done' | 'error'
   errorMessage?: string
   screenshotPath?: string
+  output?: string | number | boolean
 }
 
 export interface RunSummary {

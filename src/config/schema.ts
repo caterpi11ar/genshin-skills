@@ -43,18 +43,28 @@ export const appConfigSchema = z.object({
       baseUrl: z.string().default(''),
       apiKey: z.string().default(''),
       family: z.string().default(''),
+      stream: z.boolean().default(false),
+    })
+    .default({}),
+
+  agent: z
+    .object({
+      replanningCycleLimit: z.number().int().positive().max(200).default(40),
     })
     .default({}),
 
   tasks: z
     .object({
-      enabled: z.array(z.string()).default([
+      enabled: z.array(z.string()).min(1).default([
         'welkin-moon',
         'claim-mail',
-        'expedition-collect',
-        'battle-pass-claim',
       ]),
-      skillsDirs: z.array(z.string()).default([PATHS.builtinSkillsDir, './skills', PATHS.skillsDir]),
+      skillsDirs: z.array(z.string()).min(1).default([PATHS.builtinSkillsDir, './skills', PATHS.skillsDir]),
+      routines: z.record(z.array(z.string()).min(1)).default({
+        daily: ['welkin-moon', 'claim-mail'],
+        rewards: ['welkin-moon', 'claim-mail', 'claim-achievements', 'claim-event-rewards', 'battle-pass-claim'],
+        full: ['welkin-moon', 'claim-mail', 'claim-achievements', 'claim-event-rewards', 'expedition-collect', 'battle-pass-claim'],
+      }),
     })
     .default({}),
 
@@ -81,7 +91,7 @@ export const appConfigSchema = z.object({
 
   queue: z
     .object({
-      maxDepth: z.number().default(10),
+      maxDepth: z.number().int().positive().default(10),
     })
     .default({}),
 

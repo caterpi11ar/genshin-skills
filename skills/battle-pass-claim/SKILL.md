@@ -5,6 +5,8 @@ description: Open the battle pass (Gnostic Hymn) interface and claim all availab
 enabled: false
 timeoutMs: 300000
 retries: 1
+dependsOn:
+  - welkin-moon
 ---
 
 ## Background
@@ -38,6 +40,17 @@ retries: 1
 
 如果没有可领取的奖励（所有奖励已领取或等级不足），直接关闭并报告 done success。
 
+## Steps
+
+- keyPress: Escape
+- aiWaitFor: 派蒙菜单已打开，鼠标已解锁并能看到菜单图标网格
+- click: 338,560
+- aiWaitFor: 纪行界面已打开
+- aiAct: 切换到纪行奖励页面；如果存在「一键领取」或亮起的可领取奖励，领取全部奖励；如果纪行未开启或没有可领取奖励，不做领取操作
+- aiAct: 如果出现物品展示弹窗，点击空白处或确认按钮关闭
+- keyPress: Escape
+- aiWaitFor: 已回到游戏主界面，可以看到角色站在游戏世界中
+
 ## Known Issues
 
 - 纪行界面有多个标签页（任务、奖励等）——确保在「奖励」页面领取。
@@ -46,3 +59,4 @@ retries: 1
 - 纪行可能在版本更新后重置——如果显示「纪行未开启」，报告 done success。
 - 纪行免费轨道和付费轨道——只领取已解锁的（亮起的）奖励，灰色不可点击的跳过。
 - 右上角纪行图标点击无反应——主界面鼠标被锁定，必须先按 Esc 通过派蒙菜单进入（第4行第3列「纪行」）。
+- 1280×720 派蒙菜单中「纪行」位于第4行第3列，中心坐标约为 (338,560)；「多人游戏」在其右侧，避免误点。

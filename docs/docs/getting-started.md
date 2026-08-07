@@ -5,9 +5,9 @@ title: 快速开始
 
 # 快速开始
 
-Genshin Impact Claw（`giclaw`）是专为原神服务的智能体。通过视觉模型分析游戏截图，自动完成云原神的日常任务——登录、领取月卡、收取邮件、探索派遣、纪行奖励。
+Genshin Impact Claw（`giclaw`）是专为原神服务的智能体。它通过视觉模型理解游戏截图，并结合确定性键鼠步骤，自动完成月卡、邮件、纪行、成就和活动奖励领取。
 
-无需选择器、无需坐标硬编码。截图发给 AI，AI 决定下一步操作。
+视觉 AI 负责识别变化界面，稳定入口则使用有界、可审计的键鼠操作。两类步骤可以在同一个工作流中组合。
 
 ## 环境要求
 
@@ -21,7 +21,7 @@ npm install -g giclaw@latest
 pnpm add -g giclaw@latest
 ```
 
-安装后全局可用 `giclaw` 命令。首次运行时自动下载 Chromium，无需手动安装。
+安装后全局可用 `giclaw` 命令。运行时优先使用 Playwright 已安装的 Chromium；若对应版本不存在，会复用系统 Chrome、Edge 或 Chromium，不会静默修改全局浏览器缓存。
 
 ## 交互式配置
 
@@ -43,9 +43,9 @@ giclaw init
 giclaw run --no-headless
 ```
 
-首次运行必须使用 `--no-headless`，此时浏览器可见，你需要手动登录米哈游账号。登录成功后，cookie 会自动保存到 `~/.giclaw/cookies.json`。
+推荐首次使用 `--no-headless`，此时浏览器保持可见，你可以完成账号登录并观察任务执行。即使按默认 headless 模式启动，没有有效 Cookie 时程序也会自动打开可见浏览器引导登录。登录成功后，Cookie 会保存到 `~/.giclaw/cookies.json`。
 
-登录完成后，giclaw 自动接管浏览器，依次执行已启用的技能（月卡领取 → 邮件收取 → 派遣收取 → 纪行奖励）。
+登录完成后，giclaw 自动接管浏览器，依次执行已启用的任务。默认只执行月卡领取和邮件收取。纪行、成就和活动奖励也已通过真实账号验收，但默认关闭；使用 `rewards` 流程可一次运行这 5 个任务。
 
 ## 后续运行
 
@@ -53,7 +53,7 @@ giclaw run --no-headless
 giclaw run
 ```
 
-后续运行自动复用已保存的 cookie，以 headless 模式执行，无需手动操作。如果 cookie 过期，程序会提示你重新以 `--no-headless` 模式登录。
+后续运行会自动复用已保存的 Cookie。Cookie 恢复最多检查 15 秒；确认无效后，程序会删除失效文件并自动打开可见浏览器，等待你重新登录。登录成功后会更新 Cookie，并按配置继续使用可见或 headless 会话。
 
 ## 验证配置
 
@@ -61,7 +61,17 @@ giclaw run
 giclaw run --dry-run
 ```
 
-`--dry-run` 仅验证配置是否正确（模型连接、技能加载等），不会实际启动浏览器或执行任务。
+`--dry-run` 会严格校验配置、技能文件、任务 ID、依赖图和最终执行顺序，不会启动浏览器，也不会请求模型 API。因此它不能证明 API Key 有效或游戏内流程成功。
+
+还可以查看当前技能目录提供的全部能力：
+
+```bash
+giclaw skills
+giclaw run --routine daily
+giclaw run --routine rewards
+```
+
+`daily` 运行月卡和邮件；`rewards` 运行已通过真实账号验收的 5 个任务。`full` 当前仍包含暂停的探索派遣能力，不建议直接使用。
 
 ## 从源码安装（开发）
 

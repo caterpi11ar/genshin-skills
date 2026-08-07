@@ -8,6 +8,7 @@ const sidebars: SidebarsConfig = {
     'cli',
     'daemon-mode',
     'architecture',
+    'bettergi-comparison',
     {
       type: 'category',
       label: '技能系统',

@@ -6,6 +6,7 @@ import type { logger } from '../utils/logger.js'
 export interface TaskContext {
   page: Page
   modelConfig: Record<string, string>
+  streamModelResponses?: boolean
   config: AppConfig
   logger: typeof logger
   transcript?: TranscriptWriter
@@ -20,6 +21,7 @@ export interface TaskDefinition {
   defaultEnabled: boolean
   timeoutMs: number
   retries?: number
+  dependsOn?: string[]
   execute: (ctx: TaskContext) => Promise<TaskResult>
 }
 

@@ -21,7 +21,6 @@ export class SkillRegistry {
 
   toTaskDefinitions(): TaskDefinition[] {
     return this.skills
-      .filter(skill => skill.enabled)
       .map(skill => ({
         id: skill.id,
         name: skill.name,
@@ -29,41 +28,31 @@ export class SkillRegistry {
         defaultEnabled: skill.enabled,
         timeoutMs: skill.timeoutMs,
         retries: skill.retries,
+        dependsOn: skill.dependsOn,
 
         async execute(ctx: TaskContext): Promise<TaskResult> {
-          const start = Date.now()
+          const result = await executeSteps({
+            skillId: skill.id,
+            page: ctx.page,
+            steps: skill.steps,
+            modelConfig: ctx.modelConfig,
+            streamModelResponses: ctx.streamModelResponses,
+            replanningCycleLimit: ctx.config.agent.replanningCycleLimit,
+            timeoutMs: skill.timeoutMs,
+            background: skill.background,
+            goal: skill.goal,
+            knownIssues: skill.knownIssues,
+            transcript: ctx.transcript,
+            screenshotDir: ctx.screenshotDir ?? PATHS.screenshotDir,
+            onProgress: ctx.onProgress,
+          })
 
-          try {
-            const result = await executeSteps({
-              page: ctx.page,
-              steps: skill.steps,
-              modelConfig: ctx.modelConfig,
-              timeoutMs: skill.timeoutMs,
-              transcript: ctx.transcript,
-              screenshotDir: ctx.screenshotDir ?? PATHS.screenshotDir,
-              onProgress: ctx.onProgress,
-            })
-
-            return {
-              taskId: skill.id,
-              success: result.success,
-              message: result.reason,
-              durationMs: result.durationMs,
-              completedAt: new Date(),
-            }
-          }
-          catch (err) {
-            const error = err instanceof Error ? err : new Error(String(err))
-            ctx.logger.error(`[${skill.id}] Error: ${error.message}`)
-
-            return {
-              taskId: skill.id,
-              success: false,
-              message: error.message,
-              durationMs: Date.now() - start,
-              completedAt: new Date(),
-              error: { name: error.name, message: error.message },
-            }
+          return {
+            taskId: skill.id,
+            success: result.success,
+            message: result.reason,
+            durationMs: result.durationMs,
+            completedAt: new Date(),
           }
         },
       }))

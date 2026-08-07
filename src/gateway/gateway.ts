@@ -29,7 +29,7 @@ export class Gateway implements IGateway {
   constructor(config: AppConfig) {
     this.config = config
     this.state = new GatewayState()
-    this.queue = new TaskQueue()
+    this.queue = new TaskQueue(config.queue.maxDepth)
     this.taskRunner = new TaskRunner()
     this.skillRegistry = new SkillRegistry()
     this.stateStore = new StateStore(config.memory.dataDir, config.memory.maxHistory)
@@ -49,6 +49,9 @@ export class Gateway implements IGateway {
     this.queue.on('enqueue', () => {
       this.state.update({ queueDepth: this.queue.getDepth() })
     })
+    this.queue.on('processing', () => {
+      this.state.update({ queueDepth: this.queue.getDepth() })
+    })
     this.queue.on('complete', () => {
       this.state.update({ queueDepth: this.queue.getDepth() })
     })
@@ -60,6 +63,20 @@ export class Gateway implements IGateway {
   async init(): Promise<void> {
     await this.skillRegistry.loadFromDirs(this.config.tasks.skillsDirs)
     this.taskRunner.registerAll(this.skillRegistry.toTaskDefinitions())
+    if (this.skillRegistry.getAll().length === 0)
+      throw new Error(`No skills found in: ${this.config.tasks.skillsDirs.join(', ')}`)
+    // Resolve configured routines now so typos, missing dependencies and
+    // dependency cycles fail during startup instead of during an unattended run.
+    this.taskRunner.getEnabledTasks(this.config.tasks.enabled)
+    for (const [name, taskIds] of Object.entries(this.config.tasks.routines)) {
+      try {
+        this.taskRunner.getEnabledTasks(taskIds)
+      }
+      catch (err) {
+        const message = err instanceof Error ? err.message : String(err)
+        throw new Error(`Invalid routine "${name}": ${message}`)
+      }
+    }
     logger.info(
       `Loaded ${this.skillRegistry.getAll().length} skill(s) from ${this.config.tasks.skillsDirs.join(', ')}`,
     )
@@ -71,6 +88,9 @@ export class Gateway implements IGateway {
     description: string
     enabled: boolean
     timeoutMs: number
+    defaultEnabled: boolean
+    dependsOn: string[]
+    steps: number
   }[] {
     return this.skillRegistry.getAll().map(s => ({
       id: s.id,
@@ -78,6 +98,9 @@ export class Gateway implements IGateway {
       description: s.description,
       enabled: this.config.tasks.enabled.includes(s.id),
       timeoutMs: s.timeoutMs,
+      defaultEnabled: s.enabled,
+      dependsOn: s.dependsOn,
+      steps: s.steps.length,
     }))
   }
 
@@ -190,17 +213,19 @@ export class Gateway implements IGateway {
       const page = session.getPage()
       const modelConfig: Record<string, string> = {
         MIDSCENE_MODEL_NAME: this.config.model.name,
-        OPENAI_BASE_URL: this.config.model.baseUrl,
-        OPENAI_API_KEY: this.config.model.apiKey,
+        MIDSCENE_MODEL_BASE_URL: this.config.model.baseUrl,
+        MIDSCENE_MODEL_API_KEY: this.config.model.apiKey,
       }
-      // Map family to midscene's provider flags
+      // Map the user-facing provider name to Midscene 1.10's model family.
       const family = this.config.model.family.toLowerCase()
       if (family === 'gemini')
-        modelConfig.MIDSCENE_USE_GEMINI = 'true'
-      else if (family === 'qwen-vl')
-        modelConfig.MIDSCENE_USE_QWEN_VL = 'true'
+        modelConfig.MIDSCENE_MODEL_FAMILY = 'gemini'
+      else if (family === 'qwen-vl' || family === 'qwen')
+        modelConfig.MIDSCENE_MODEL_FAMILY = 'qwen2.5-vl'
       else if (family === 'doubao')
-        modelConfig.MIDSCENE_USE_DOUBAO_VISION = 'true'
+        modelConfig.MIDSCENE_MODEL_FAMILY = 'doubao-vision'
+      else if (family === 'gpt-5' || (family === 'openai' && this.config.model.name.startsWith('gpt-5')))
+        modelConfig.MIDSCENE_MODEL_FAMILY = 'gpt-5'
       const enabledIds = taskIds ?? this.config.tasks.enabled
 
       const onProgress = (step: number, _elapsed: number, action: string, reason: string) => {
@@ -209,7 +234,7 @@ export class Gateway implements IGateway {
       }
 
       const result = await this.taskRunner.runAll(
-        { page, modelConfig, config: this.config, transcript, screenshotDir: join(this.config.memory.dataDir, 'screenshots'), onProgress },
+        { page, modelConfig, streamModelResponses: this.config.model.stream, config: this.config, transcript, screenshotDir: join(this.config.memory.dataDir, 'screenshots'), onProgress },
         enabledIds,
       )
 

@@ -10,7 +10,7 @@ const features = [
   {
     title: '智能日常代理',
     icon: '🎮',
-    description: '基于视觉识别的智能体，自动完成每日委托、树脂消耗等重复性日常任务。',
+    description: '通过视觉识别与确定性键鼠步骤，自动领取月卡、邮件、纪行、成就和活动奖励。',
   },
   {
     title: '技能系统',
@@ -54,7 +54,7 @@ function HomepageHero() {
           <div className={styles.heroHighlights}>
             <div className={styles.highlight}>
               <span className={styles.highlightIcon}>🎮</span>
-              <span className={styles.highlightText}>自动日常委托</span>
+              <span className={styles.highlightText}>5 项奖励流程已验收</span>
             </div>
             <div className={styles.highlight}>
               <span className={styles.highlightIcon}>☁️</span>
@@ -122,7 +122,7 @@ function HomepageCta() {
           开始你的自动化之旅
         </Heading>
         <p className={styles.ctaDescription}>
-          五分钟完成配置，让 AI 代理为你处理重复性日常任务
+          五分钟完成配置，让 AI 代理处理重复性的奖励领取
         </p>
         <div className={styles.ctaButtons}>
           <Link className={styles.primaryButton} to="/docs/getting-started">
@@ -145,7 +145,7 @@ function HomepageCta() {
 
 export default function Home(): ReactNode {
   return (
-    <Layout description="专为《原神》打造——利用视觉 AI 代理进行云游戏，让您无需亲自操作">
+    <Layout description="专为《原神》云游戏打造的视觉 AI 奖励领取代理">
       <div className={styles.pageWrapper}>
         <div className={styles.bgGrid} />
         <div className={`${styles.bgBlob} ${styles.bgBlob1}`} />

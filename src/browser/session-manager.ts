@@ -3,7 +3,7 @@ import type { AppConfig } from '../config/schema.js'
 import { chromium } from 'playwright'
 import { SessionError } from '../utils/errors.js'
 import { logger } from '../utils/logger.js'
-import { ensureChromium } from './ensure-chromium.js'
+import { resolveChromiumExecutable } from './ensure-chromium.js'
 
 export interface SessionOptions {
   headless?: boolean
@@ -49,9 +49,11 @@ export class SessionManager {
 
     logger.info(`Launching browser (headless: ${headless})`)
 
-    ensureChromium()
-
-    this.browser = await chromium.launch({ headless })
+    const executablePath = resolveChromiumExecutable()
+    this.browser = await chromium.launch({
+      headless,
+      ...(executablePath ? { executablePath } : {}),
+    })
     this.context = await this.browser.newContext({ viewport })
     this.page_ = await this.context.newPage()
     await this.page_.goto(this.config.browser.startupUrl)

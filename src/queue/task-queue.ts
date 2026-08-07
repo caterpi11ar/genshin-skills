@@ -1,6 +1,7 @@
 import type { RunResult } from '../tasks/task-runner.js'
 import type { QueueItem, QueueStatus } from './types.js'
 import { EventEmitter } from 'node:events'
+import { QueueError } from '../utils/errors.js'
 import { logger } from '../utils/logger.js'
 
 interface QueueEntry {
@@ -18,11 +19,24 @@ export class TaskQueue extends EventEmitter {
   private queue: QueueEntry[] = []
   private processing = false
   private status: QueueStatus = 'idle'
+  private readonly maxDepth: number
+
+  constructor(maxDepth: number = 10) {
+    super()
+    if (!Number.isInteger(maxDepth) || maxDepth < 1)
+      throw new QueueError(`Queue maxDepth must be a positive integer, received ${maxDepth}`)
+    this.maxDepth = maxDepth
+  }
 
   enqueue(
     item: QueueItem,
     processor: () => Promise<RunResult>,
   ): Promise<RunResult> {
+    if (this.queue.length >= this.maxDepth) {
+      return Promise.reject(new QueueError(
+        `Queue is full (${this.queue.length}/${this.maxDepth}); run ${item.runId} was not enqueued`,
+      ))
+    }
     return new Promise<RunResult>((resolve, reject) => {
       this.queue.push({ item, processor, resolve, reject })
       logger.info(
@@ -83,7 +97,10 @@ export class TaskQueue extends EventEmitter {
     catch (err) {
       const error = err instanceof Error ? err : new Error(String(err))
       entry.reject(error)
-      this.emit('error', entry.item, error)
+      // EventEmitter treats an unhandled "error" event as an exception.
+      // The queue Promise is already rejected, so only emit for observers.
+      if (this.listenerCount('error') > 0)
+        this.emit('error', entry.item, error)
     }
     finally {
       this.processing = false

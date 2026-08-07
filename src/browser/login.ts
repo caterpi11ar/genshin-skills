@@ -1,14 +1,19 @@
 import type { Page } from 'playwright'
 import type { AppConfig } from '../config/schema.js'
 import type { SessionManager } from './session-manager.js'
-import { delay } from '../utils/delay.js'
 import { LoginError } from '../utils/errors.js'
 import { logger } from '../utils/logger.js'
 import { deleteCookies, loadCookies, saveCookies } from './cookie-store.js'
 
-async function checkSelector(page: Page, selector: string): Promise<boolean> {
+const COOKIE_RESTORE_CHECK_TIMEOUT_MS = 15_000
+
+async function checkSelector(
+  page: Page,
+  selector: string,
+  timeoutMs: number,
+): Promise<boolean> {
   try {
-    await page.locator(selector).waitFor({ timeout: 0 })
+    await page.locator(selector).waitFor({ timeout: timeoutMs })
     return true
   }
   catch {
@@ -24,10 +29,14 @@ async function pollForLogin(
 ): Promise<boolean> {
   const deadline = Date.now() + timeoutMs
   while (Date.now() < deadline) {
-    const found = await checkSelector(page, selector)
+    const remaining = deadline - Date.now()
+    const found = await checkSelector(
+      page,
+      selector,
+      Math.max(1, Math.min(pollIntervalMs, remaining)),
+    )
     if (found)
       return true
-    await delay(pollIntervalMs)
   }
   return false
 }
@@ -48,13 +57,17 @@ export async function loginFlow(
   // Try cookie restore
   const cookies = await loadCookies(cookiePath)
   if (cookies) {
-    logger.info('Cookie file found, attempting headless login')
-    const page = await session.launch({ headless: true })
+    logger.info('Cookie file found, attempting session restore')
+    const page = await session.launch({ headless: config.browser.headless })
     const ctx = session.getContext()
     await ctx.addCookies(cookies)
     await page.reload()
 
-    const found = await checkSelector(page, successSelector)
+    const found = await checkSelector(
+      page,
+      successSelector,
+      Math.min(timeoutMs, COOKIE_RESTORE_CHECK_TIMEOUT_MS),
+    )
     if (found) {
       logger.info('Login restored from cookies')
       return
@@ -87,6 +100,11 @@ export async function loginFlow(
   const freshCookies = await session.getContext().cookies()
   await saveCookies(cookiePath, freshCookies)
 
+  if (!config.browser.headless) {
+    logger.info('Login complete — keeping visible session')
+    return
+  }
+
   // Switch to headless
   logger.info('Login successful, switching to headless mode')
   const headlessPage = await session.relaunch({ headless: true })
@@ -95,7 +113,11 @@ export async function loginFlow(
   await headlessPage.reload()
 
   // Verify
-  const verified = await checkSelector(headlessPage, successSelector)
+  const verified = await checkSelector(
+    headlessPage,
+    successSelector,
+    Math.min(timeoutMs, COOKIE_RESTORE_CHECK_TIMEOUT_MS),
+  )
   if (!verified) {
     throw new LoginError(
       'Failed to verify login after switching to headless mode',

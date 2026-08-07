@@ -1,5 +1,6 @@
 import type { FastifyInstance } from 'fastify'
 import type { Gateway } from '../gateway/gateway.js'
+import { logger } from '../utils/logger.js'
 
 export function registerApi(app: FastifyInstance, gateway: Gateway): void {
   const config = gateway.config
@@ -48,15 +49,44 @@ export function registerApi(app: FastifyInstance, gateway: Gateway): void {
   })
 
   // POST /api/run
-  app.post('/api/run', async (_request, reply) => {
-    const snapshot = gateway.getSnapshot()
-    if (snapshot.running) {
-      // Queue instead of reject
-      gateway.enqueueRun('api').catch(() => {})
-      return reply.status(202).send({ status: 'queued' })
+  app.post('/api/run', async (request, reply) => {
+    const body = (request.body ?? {}) as { tasks?: string[], routine?: string }
+    if (body.tasks && body.routine) {
+      return reply.status(400).send({ error: 'Use either tasks or routine, not both' })
     }
 
-    gateway.enqueueRun('api').catch(() => {})
-    return { status: 'started' }
+    let taskIds = body.tasks
+    if (body.routine) {
+      taskIds = config.tasks.routines[body.routine]
+      if (!taskIds) {
+        return reply.status(400).send({
+          error: `Unknown routine "${body.routine}"`,
+          availableRoutines: Object.keys(config.tasks.routines),
+        })
+      }
+    }
+    try {
+      gateway.getTaskRunner().getEnabledTasks(taskIds ?? config.tasks.enabled)
+    }
+    catch (err) {
+      const message = err instanceof Error ? err.message : String(err)
+      return reply.status(400).send({ error: message })
+    }
+
+    const snapshot = gateway.getSnapshot()
+    if (snapshot.running && snapshot.queueDepth >= config.queue.maxDepth) {
+      return reply.status(429).send({
+        error: `Queue is full (${snapshot.queueDepth}/${config.queue.maxDepth})`,
+      })
+    }
+
+    const status = snapshot.running ? 'queued' : 'started'
+    gateway.enqueueRun('api', taskIds).catch((err) => {
+      logger.error('API-triggered run failed', err)
+    })
+    return reply.status(status === 'queued' ? 202 : 200).send({
+      status,
+      tasks: gateway.getTaskRunner().getEnabledTasks(taskIds ?? config.tasks.enabled).map(task => task.id),
+    })
   })
 }

@@ -5,6 +5,8 @@ description: Open the in-game mailbox and claim all pending mail rewards.
 enabled: true
 timeoutMs: 300000
 retries: 1
+dependsOn:
+  - welkin-moon
 ---
 
 ## Background
@@ -19,6 +21,8 @@ retries: 1
 - aiWaitFor: 邮箱界面已打开，顶部显示「邮箱」标题和邮件数量
 - aiAct: 查看底部「全部领取」按钮。如果可点击（绿色），点击它领取所有邮件附件；如果不可点击（灰色）或邮件列表为空，不做操作
 - aiAct: 如果弹出物品展示窗口，点击空白处关闭
+- keyPress: Escape
+- wait: 1s
 - keyPress: Escape
 - aiWaitFor: 回到游戏主界面
 

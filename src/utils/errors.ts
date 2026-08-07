@@ -34,6 +34,18 @@ export class TaskError extends AppError {
   }
 }
 
+export class StepExecutionError extends AppError {
+  constructor(
+    message: string,
+    public readonly step: number,
+    public readonly screenshotPath?: string,
+    cause?: unknown,
+  ) {
+    super(message, 'STEP_EXECUTION_ERROR', cause)
+    this.name = 'StepExecutionError'
+  }
+}
+
 export class TimeoutError extends AppError {
   constructor(operation: string, timeoutMs: number) {
     super(

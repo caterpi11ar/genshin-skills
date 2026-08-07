@@ -8,13 +8,14 @@ export interface RetryOptions {
   retries: number
   delayMs?: number
   onRetry?: (attempt: number, error: unknown) => void
+  shouldRetry?: (error: unknown) => boolean
 }
 
 export async function retry<T>(
   fn: () => Promise<T>,
   options: RetryOptions,
 ): Promise<T> {
-  const { retries, delayMs = 1000, onRetry } = options
+  const { retries, delayMs = 1000, onRetry, shouldRetry = () => true } = options
   let lastError: unknown
 
   for (let attempt = 0; attempt <= retries; attempt++) {
@@ -23,12 +24,15 @@ export async function retry<T>(
     }
     catch (err) {
       lastError = err
-      if (attempt < retries) {
+      if (attempt < retries && shouldRetry(err)) {
         logger.warn(
           `Attempt ${attempt + 1}/${retries + 1} failed, retrying in ${delayMs}ms`,
         )
         onRetry?.(attempt + 1, err)
         await delay(delayMs)
+      }
+      else {
+        throw err
       }
     }
   }

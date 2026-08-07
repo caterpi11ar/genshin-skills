@@ -14,6 +14,7 @@ giclaw [options] [command]
 | 命令 | 说明 |
 |------|------|
 | `run` | 单次运行（默认） |
+| `skills` | 校验并列出技能、依赖、命名流程和原子操作 |
 | `daemon [options]` | Daemon 模式 |
 | `init [options]` | 交互式初始化配置 |
 | `config` | 显示配置路径 |
@@ -24,6 +25,7 @@ giclaw [options] [command]
 |------|------|
 | `-c, --config <path>` | 配置文件路径（默认 `./config.json`） |
 | `-t, --tasks <ids...>` | 指定运行的任务 |
+| `-r, --routine <name>` | 运行命名一条龙流程（不能与 `--tasks` 同用） |
 | `--headless / --no-headless` | 启用/禁用无头模式 |
 | `--dry-run` | 仅验证配置 |
 | `-v, --verbose` | 调试日志 |
@@ -59,6 +61,15 @@ giclaw run --no-headless
 # 仅运行指定任务
 giclaw run --tasks welkin-moon claim-mail
 
+# 运行日常一条龙（依赖会自动去重并按顺序展开）
+giclaw run --routine daily
+
+# 运行已通过真实账号验收的完整奖励流程
+giclaw run --routine rewards
+
+# 查看并校验技能目录
+giclaw skills
+
 # 验证配置
 giclaw run --dry-run
 
@@ -71,3 +82,7 @@ giclaw daemon --port 8080
 # 禁用 Web 面板
 giclaw daemon --no-web
 ```
+
+:::warning
+默认 `full` 流程仍包含已暂停的 `expedition-collect`。当前需要完整奖励领取时请使用 `rewards`，不要直接运行 `full`。
+:::

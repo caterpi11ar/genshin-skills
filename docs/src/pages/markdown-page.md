@@ -1,7 +1,13 @@
 ---
-title: Markdown page example
+title: 当前能力状态
 ---
 
-# Markdown page example
+# 当前能力状态
 
-You don't need React to write simple standalone pages.
+截至 2026-08-07，月卡、邮件、纪行、成就和活动奖励已在真实账号环境完成全流程验收。默认仅启用月卡和邮件；需要运行全部 5 个已验收任务时，使用：
+
+```bash
+giclaw run --routine rewards
+```
+
+探索派遣能力当前暂停，尚未完成领取与再次派遣闭环。默认 `full` 流程仍包含该能力，现阶段不建议直接运行。

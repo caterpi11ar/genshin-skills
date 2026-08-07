@@ -19,13 +19,20 @@ title: 配置
 {
   "locale": "zh",
   "model": {
-    "name": "gemini-2.5-flash",
-    "baseUrl": "https://generativelanguage.googleapis.com/v1beta/openai",
-    "apiKey": "sk-xxx"
+    "name": "gpt-5.6-sol",
+    "baseUrl": "http://127.0.0.1:3002/v1",
+    "apiKey": "你的 NewAPI 用户令牌",
+    "family": "gpt-5",
+    "stream": true
   },
   "tasks": {
-    "enabled": ["welkin-moon", "claim-mail", "expedition-collect", "battle-pass-claim"],
-    "skillsDirs": ["./skills"]
+    "enabled": ["welkin-moon", "claim-mail"],
+    "skillsDirs": ["./skills"],
+    "routines": {
+      "daily": ["welkin-moon", "claim-mail"],
+      "rewards": ["welkin-moon", "claim-mail", "claim-achievements", "claim-event-rewards", "battle-pass-claim"],
+      "full": ["welkin-moon", "claim-mail", "claim-achievements", "claim-event-rewards", "expedition-collect", "battle-pass-claim"]
+    }
   },
   "schedule": { "cron": "0 6 * * *", "timezone": "Asia/Shanghai" },
   "browser": {
@@ -63,9 +70,11 @@ title: 配置
 
 | 配置项 | 说明 | 默认值 |
 |--------|------|--------|
-| `model.name` | 模型名称（如 `gemini-2.5-flash`、`gpt-4o`） | `""` |
+| `model.name` | 上游实际提供的模型名称；当前已验收环境使用 `gpt-5.6-sol` | `""` |
 | `model.baseUrl` | OpenAI 兼容 API 地址 | `""` |
 | `model.apiKey` | API 密钥 | `""` |
+| `model.family` | Midscene 使用的模型家族；GPT 5.x 兼容模型使用 `"gpt-5"` | `""` |
+| `model.stream` | 强制以流式 Chat Completions 请求上游，并在项目内聚合为完整响应 | `false` |
 
 详细的模型配置示例请参考[模型配置指南](./models)。
 
@@ -73,8 +82,15 @@ title: 配置
 
 | 配置项 | 说明 | 默认值 |
 |--------|------|--------|
-| `tasks.enabled` | 启用的技能 ID 列表 | `["welkin-moon", "claim-mail", "expedition-collect", "battle-pass-claim"]` |
+| `tasks.enabled` | 默认执行的技能 ID 列表 | `["welkin-moon", "claim-mail"]` |
 | `tasks.skillsDirs` | 技能目录搜索路径 | `["<内置技能目录>", "./skills", "~/.giclaw/skills"]` |
+| `tasks.routines` | 命名一条龙流程；用 `--routine <name>` 运行 | `daily`、`rewards`、`full` |
+
+默认命名流程的含义：
+
+- `daily`：月卡 + 邮件，也是默认启用集合。
+- `rewards`：月卡、邮件、成就、活动和纪行；这 5 个任务均已通过真实账号验收，是当前推荐的完整奖励流程。
+- `full`：在 `rewards` 基础上加入探索派遣。该能力当前暂停，默认 schema 尚未移除它，因此现阶段应使用 `rewards`，或在自己的 `tasks.routines.full` 中显式调整。
 
 ### 调度
 

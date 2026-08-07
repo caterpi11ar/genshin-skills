@@ -4,7 +4,7 @@ import { themes as prismThemes } from 'prism-react-renderer'
 
 const config: Config = {
   title: 'giclaw',
-  tagline: '专为《原神》打造——利用视觉 AI 代理进行云游戏，让您无需亲自操作',
+  tagline: '专为《原神》云游戏打造的视觉 AI 奖励领取代理',
   favicon: 'img/favicon.ico',
 
   future: {

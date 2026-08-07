@@ -8,6 +8,7 @@ dist/
 .DS_Store
 coverage/
 cookies.json
+/config.json
 tmp/
 data/
 docs/node_modules/

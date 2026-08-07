@@ -29,6 +29,9 @@ pnpm dev
 # 运行测试
 pnpm test
 
+# 校验任务定义、依赖和命名流程
+pnpm start -- skills
+
 # 构建
 pnpm build
 
@@ -47,7 +50,9 @@ pnpm start
 1. 创建目录：`mkdir skills/my-skill`
 2. 编写 `skills/my-skill/SKILL.md`（参考[编写技能](/docs/skills/writing-skills)）
 3. 在 `config.json` 的 `tasks.enabled` 中添加 `"my-skill"`
-4. 运行验证：`giclaw run --dry-run`
+4. 运行结构校验：`giclaw skills`
+5. 运行编排校验：`giclaw run --dry-run --tasks my-skill`
+6. 使用可见窗口完成真实流程验证：`giclaw run --no-headless --tasks my-skill`
 
 ## 项目结构
 

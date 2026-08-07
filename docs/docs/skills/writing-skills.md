@@ -5,133 +5,92 @@ title: 编写技能
 
 # 编写技能
 
-## SKILL.md 格式
+每个技能位于 `skills/<skill-id>/SKILL.md`。启动和 `giclaw skills` / `--dry-run` 时会严格校验：未知原子操作、空步骤、错误 ID、无效依赖都会直接报错，不能再以“零步骤成功”掩盖配置问题。
 
-每个技能是一个 Markdown 文件，包含 YAML frontmatter 和结构化正文：
+## 完整格式
 
 ```markdown
 ---
 id: my-skill
-name: My Skill Name
-description: One-line English description for logs and API.
-enabled: true
-timeoutMs: 600000
-retries: 1
----
-
-## Background
-场景背景描述（中文）。告诉 AI 当前看到的是什么界面、有哪些元素。
-
-## Goal
-任务目标和操作步骤（中文）。越具体越好，列出分步操作指南。
-
-## Known Issues
-- 已知问题 1——处理方式。
-- 已知问题 2——处理方式。
-```
-
-## Frontmatter 字段
-
-| 字段 | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
-| `id` | string | **必填** | 唯一标识，与目录名一致 |
-| `name` | string | **必填** | 显示名称 |
-| `description` | string | **必填** | 英文简述，用于日志和 API |
-| `enabled` | boolean | `true` | 是否可被加载 |
-| `timeoutMs` | number | `600000` | 单次执行超时（毫秒） |
-| `retries` | number | `1` | 失败重试次数 |
-
-## Markdown 正文
-
-按 `## ` 标题分段，解析为 `TaskDescription`：
-
-| 标题 | 映射字段 | 说明 |
-|------|----------|------|
-| `## Background` | `background` | AI 看到的场景上下文 |
-| `## Goal` | `goal` | AI 需要完成的目标及操作步骤 |
-| `## Known Issues` | `knownIssues` | 每行 `- ` 开头的已知问题列表 |
-
-## 完整示例：claim-mail
-
-下面以内置技能 `claim-mail`（邮件领取）为例，展示一个完整的 `SKILL.md` 从零编写的过程。
-
-### 第一步：创建目录
-
-```bash
-mkdir skills/claim-mail
-```
-
-### 第二步：编写 SKILL.md
-
-```markdown title="skills/claim-mail/SKILL.md"
----
-id: claim-mail
-name: Claim Mail Rewards
-description: Open the in-game mailbox and claim all pending mail rewards.
-enabled: true
+name: My Skill
+description: One-line description for logs and API.
+enabled: false
 timeoutMs: 300000
 retries: 1
+dependsOn:
+  - welkin-moon
 ---
 
 ## Background
-你正在操作原神游戏的主界面。游戏已经启动，角色站在游戏世界中。
-
-屏幕左上角区域有 Paimon 图标，附近通常有邮件图标（信封形状）。
-如果有未读邮件，邮件图标上会有红点提示。
+告诉视觉模型当前场景和 UI 约束。
 
 ## Goal
-打开游戏内邮箱，领取所有未读邮件的附件。
+描述整个技能的目标和安全边界。
 
-1. 在屏幕左上角区域找到邮件图标（信封形状，靠近 Paimon 图标），点击打开邮箱。
-2. 如果邮件列表中有"全部领取"按钮，直接点击一键领取所有附件。
-3. 如果没有"全部领取"，逐个点击未读邮件，点击"领取附件"按钮。
-4. 领取完成后，关闭邮箱界面，回到游戏主画面。
-5. 如果邮件图标上没有红点（没有新邮件），直接报告 done success。
+## Steps
+- keyPress: Escape
+- aiWaitFor: 派蒙菜单已经打开
+- aiTap: 邮件图标
+- screenshot: mailbox-opened
 
 ## Known Issues
-- 邮件图标上没有红点说明没有新邮件，直接报告 done success，不需要打开邮箱。
-- 邮件列表为空时，直接关闭邮箱报告 done success。
-- 领取附件后可能弹出物品展示窗口，需要点击关闭或点击空白处关闭后再继续。
-- 邮件列表可能很长需要滚动，如果看到的邮件都已经领取过了，尝试向下滚动查找更多。
-- 如果主界面有其他弹窗遮挡邮件图标，先关闭弹窗（点击关闭按钮或按 Escape）。
+- 云游戏平台侧边栏不是游戏 UI，不要点击屏幕最左侧边缘。
 ```
 
-### 第三步：注册技能
+`Background`、`Goal` 和 `Known Issues` 会作为 Midscene 的 `aiActionContext` 注入所有视觉 AI 步骤，不只是保存为元数据。
 
-在 `config.json` 的 `tasks.enabled` 中添加：
+## Frontmatter
 
-```json
-{
-  "tasks": {
-    "enabled": ["welkin-moon", "claim-mail", "expedition-collect", "battle-pass-claim"]
-  }
-}
-```
+| 字段 | 默认值 | 说明 |
+|---|---:|---|
+| `id` | 必填 | kebab-case，必须与目录名一致 |
+| `name` | 必填 | 显示名 |
+| `description` | 必填 | 日志/API 简述 |
+| `enabled` | `true` | 目录中的默认推荐状态；显式配置或 routine 仍可选择 `false` 技能 |
+| `timeoutMs` | `600000` | 每次尝试的超时 |
+| `retries` | `1` | 失败后的重试次数 |
+| `dependsOn` | `[]` | 前置技能 ID；运行时自动递归加入、去重和拓扑排序 |
 
-### 第四步：验证
+## 原子操作
+
+### 视觉 AI（10 个）
+
+| 操作 | 参数格式 | 用途 |
+|---|---|---|
+| `aiAct` | 自然语言任务 | 让模型规划并执行一组动作 |
+| `aiTap` | 元素描述 | 视觉定位并左键点击 |
+| `aiRightClick` | 元素描述 | 视觉定位并右键点击 |
+| `aiHover` | 元素描述 | 视觉定位并悬停 |
+| `aiInput` | `文本 => 输入框描述` | 定位输入框并输入 |
+| `aiKeyboardPress` | `按键 => 可选目标描述` | AI 辅助按键 |
+| `aiScroll` | `方向 [距离] => 可选区域描述` | AI 辅助滚动 |
+| `aiWaitFor` | 状态描述 | 循环观察直到状态成立 |
+| `aiAssert` | 断言描述 | 断言不成立时让步骤失败 |
+| `aiBoolean` | 问题 | 返回布尔观察结果并写入 transcript |
+
+### 确定性键鼠与诊断（12 个）
+
+| 操作 | 参数示例 | 用途 |
+|---|---|---|
+| `click` | `640,360` | 精确左键点击 |
+| `rightClick` | `640,360` | 精确右键点击 |
+| `move` | `640,360` | 移动鼠标 |
+| `scroll` | `down 500` | 精确滚轮输入 |
+| `type` | `hello` | 键盘输入文本 |
+| `keyPress` | `Escape` | 按下并释放按键 |
+| `keyDown` / `keyUp` | `W` | 长按/释放按键，可用于宏或移动 |
+| `mouseDown` / `mouseUp` | `left` | 长按/释放鼠标键 |
+| `wait` | `1500` 或 `1.5s` | 确定性等待 |
+| `screenshot` | `checkpoint-name` | 保存命名检查点截图 |
+
+确定性操作适合稳定 UI 和键鼠录制回放；视觉操作适合版本变化、布局不确定的界面。混合使用通常比全程 `aiAct` 更快、更便宜，也更容易排错。
+
+## 验证与运行
 
 ```bash
-giclaw run --dry-run
+giclaw skills
+giclaw run --dry-run --tasks my-skill
+giclaw run --no-headless --tasks my-skill
 ```
 
-确认技能被正确加载后，使用 `--no-headless` 模式实际运行观察效果：
-
-```bash
-giclaw run --tasks claim-mail --no-headless
-```
-
-## 编写技巧
-
-- **Background** 要描述 AI 在截图中会看到什么，帮它定位当前状态。越具体越好——描述屏幕区域、UI 元素的位置和外观。
-- **Goal** 写成分步操作指南（1、2、3…），明确每一步该点什么、找什么。包含"如果...则..."的条件分支，帮 AI 处理不同场景。
-- **Known Issues** 列出容易踩坑的 UI 场景和正确处理方式。这是提升技能稳定性最重要的部分——每次发现 AI 执行出错的场景，都应该补充到这里。
-- 所有 AI 指令用中文编写（prompt 模板为中文）。
-- 如果任务在某些条件下无需执行（如没有新邮件），在 Goal 中明确说明直接报告 `done success`。
-- `timeoutMs` 根据任务复杂度调整——简单任务 5 分钟足够，复杂任务（如派遣收取）建议 10 分钟。
-
-## 添加新技能
-
-1. 创建目录：`mkdir skills/my-skill`
-2. 编写 `skills/my-skill/SKILL.md`
-3. 在 `config.json` 的 `tasks.enabled` 中添加 `"my-skill"`
-4. 运行验证：`giclaw run --dry-run`
+`--dry-run` 只做本地结构与依赖验证，不会调用模型。实际运行失败时，transcript 会记录每一步；失败步骤会自动保存现场截图。

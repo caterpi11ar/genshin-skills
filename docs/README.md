@@ -1,41 +1,34 @@
-# Website
+# giclaw 文档站
 
-This website is built using [Docusaurus](https://docusaurus.io/), a modern static website generator.
+文档站基于 [Docusaurus](https://docusaurus.io/) 构建，产品文档位于 `docs/`，首页位于 `src/pages/index.tsx`。
 
-## Installation
-
-```bash
-yarn
-```
-
-## Local Development
+## 安装依赖
 
 ```bash
-yarn start
+pnpm install
 ```
 
-This command starts a local development server and opens up a browser window. Most changes are reflected live without having to restart the server.
-
-## Build
+## 本地开发
 
 ```bash
-yarn build
+pnpm start
 ```
 
-This command generates static content into the `build` directory and can be served using any static contents hosting service.
+默认启动本地开发服务器并监听文档变更。
 
-## Deployment
-
-Using SSH:
+## 构建与检查
 
 ```bash
-USE_SSH=true yarn deploy
+pnpm build
+pnpm typecheck
 ```
 
-Not using SSH:
+构建产物输出到 `build/`。合并文档修改前至少运行一次 `pnpm build`，以检查断链、MDX 和页面编译错误。
+
+## 部署
 
 ```bash
-GIT_USER=<Your GitHub username> yarn deploy
+pnpm deploy
 ```
 
-If you are using GitHub pages for hosting, this command is a convenient way to build the website and push to the `gh-pages` branch.
+站点配置位于 `docusaurus.config.ts`，生产地址为 `https://giclaw.cn`。
