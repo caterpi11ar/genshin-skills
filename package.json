@@ -2,6 +2,7 @@
   "name": "giclaw",
   "type": "module",
   "version": "0.3.0",
+  "packageManager": "pnpm@10.2.0",
   "description": "AI agent for Genshin Impact cloud gaming",
   "license": "MIT",
   "homepage": "https://giclaw.cn",
@@ -24,45 +25,72 @@
     "skills"
   ],
   "engines": {
-    "node": ">=20"
+    "node": ">=20.9"
   },
   "scripts": {
     "prepublishOnly": "npm run build",
-    "build": "tsc && cp -r src/web/public dist/web/public",
+    "build": "node scripts/prepare-build.mjs && tsc -p tsconfig.build.json && cp -r src/web/public dist/web/public && chmod +x dist/cli.js",
     "dev": "tsx src/cli.ts",
     "start": "node dist/cli.js",
     "start:daemon": "node dist/cli.js daemon",
     "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage && node scripts/check-coverage.mjs",
+    "test:package": "node scripts/check-package.mjs",
     "docs:dev": "pnpm --dir docs start",
     "docs:build": "pnpm --dir docs build",
     "docs:serve": "pnpm --dir docs serve",
     "lint": "eslint --fix",
+    "lint:check": "eslint .",
     "typecheck": "tsc -b --noEmit"
   },
   "dependencies": {
-    "@fastify/static": "^8.0.0",
-    "@fastify/websocket": "^11.0.0",
-    "@inquirer/prompts": "^8.3.0",
-    "@midscene/web": "^1.10.9",
-    "@playwright/test": "^1.52.0",
-    "commander": "^12.0.0",
-    "fastify": "^5.0.0",
+    "@fastify/static": "^10.1.3",
+    "@fastify/websocket": "^11.3.0",
+    "@inquirer/prompts": "^8.5.2",
+    "@midscene/shared": "1.10.9",
+    "@midscene/web": "1.10.9",
+    "@playwright/test": "^1.62.1",
+    "commander": "^12.1.0",
+    "fastify": "^5.11.2",
     "gray-matter": "^4.0.3",
-    "ink": "^4.4.0",
-    "node-cron": "^3.0.0",
-    "ora": "^9.3.0",
-    "playwright": "^1.52.0",
-    "react": "^18.3.0",
-    "zod": "^3.25.0"
+    "ink": "^4.4.1",
+    "node-cron": "^4.6.0",
+    "ora": "^9.4.1",
+    "playwright": "^1.62.1",
+    "react": "^18.3.1",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
-    "@antfu/eslint-config": "^7.7.0",
-    "@types/node": "^22.15.0",
-    "@types/node-cron": "^3.0.0",
-    "@types/react": "^18.3.0",
-    "eslint": "^10.0.3",
-    "tsx": "^4.0.0",
-    "typescript": "^5.8.0",
-    "vitest": "^3.2.0"
+    "@antfu/eslint-config": "^7.7.3",
+    "@types/node": "^22.20.1",
+    "@types/react": "^18.3.31",
+    "@vitest/coverage-v8": "^3.2.7",
+    "eslint": "^10.8.0",
+    "tsx": "^4.23.10",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.7"
+  },
+  "pnpm": {
+    "overrides": {
+      "@midscene/core>js-yaml": "4.3.1",
+      "@midscene/shared>sharp": "0.35.3",
+      "body-parser": "1.20.6",
+      "engine.io": "6.6.9",
+      "express": "4.22.2",
+      "express>path-to-regexp": "0.1.13",
+      "fast-uri": "3.1.5",
+      "find-my-way": "9.7.0",
+      "follow-redirects": "1.16.0",
+      "gray-matter>js-yaml": "3.15.1",
+      "ip-address": "10.4.0",
+      "lodash": "4.18.1",
+      "minimatch@10.2.6>brace-expansion": "5.0.9",
+      "minimatch@9.0.9>brace-expansion": "2.1.4",
+      "qs": "6.15.3",
+      "socket.io-parser": "4.2.7",
+      "uuid": "11.1.1",
+      "ws": "8.21.2"
+    }
   }
 }

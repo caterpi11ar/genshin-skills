@@ -1,20 +1,51 @@
 import type { AppConfig } from '../config/schema.js'
+import type { WebServerHandle } from '../web/server.js'
 import process from 'node:process'
+import { TimeoutError } from '../utils/errors.js'
 import { logger } from '../utils/logger.js'
 import { Gateway } from './gateway.js'
+
+const LIFECYCLE_SHUTDOWN_TIMEOUT_MS = 10_000
+
+async function settleShutdown(
+  operations: PromiseSettledResult<void>[] | Promise<PromiseSettledResult<void>[]>,
+): Promise<PromiseSettledResult<void>[]> {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const deadline = new Promise<never>((_, reject) => {
+    timer = setTimeout(
+      reject,
+      LIFECYCLE_SHUTDOWN_TIMEOUT_MS,
+      new TimeoutError('daemon shutdown', LIFECYCLE_SHUTDOWN_TIMEOUT_MS),
+    )
+  })
+  try {
+    return await Promise.race([Promise.resolve(operations), deadline])
+  }
+  finally {
+    if (timer)
+      clearTimeout(timer)
+  }
+}
 
 /**
  * Start the Gateway in daemon mode with optional Web and TUI.
  */
-export async function startGateway(config: AppConfig): Promise<Gateway> {
+export async function startGateway(config: AppConfig): Promise<never> {
   const gateway = new Gateway(config)
   await gateway.init()
+
+  // Validate and start scheduling before exposing any external surface. If
+  // cron/timezone setup fails, no web server or dashboard has been started and
+  // there is nothing to roll back.
+  await gateway.start()
+
+  let webServer: WebServerHandle | undefined
 
   // Start web server if enabled
   if (config.web.enabled) {
     try {
       const { startWebServer } = await import('../web/server.js')
-      await startWebServer(gateway)
+      webServer = await startWebServer(gateway)
     }
     catch (err) {
       logger.warn('Web server not available, continuing without it', err)
@@ -32,14 +63,31 @@ export async function startGateway(config: AppConfig): Promise<Gateway> {
     }
   }
 
-  // Start scheduler
-  await gateway.start()
-
   // Graceful shutdown
-  const shutdown = async () => {
-    logger.info('Shutdown signal received')
-    await gateway.shutdown()
-    process.exit(0)
+  let shutdownPromise: Promise<void> | undefined
+  const shutdown = (): Promise<void> => {
+    shutdownPromise ??= (async () => {
+      logger.info('Shutdown signal received')
+      try {
+        const operations = Promise.allSettled([
+          gateway.shutdown(),
+          webServer?.close() ?? Promise.resolve(),
+        ])
+        const results = await settleShutdown(operations)
+        const gatewayResult = results[0]
+        if (gatewayResult?.status === 'rejected')
+          throw gatewayResult.reason
+        const webResult = results[1]
+        if (webResult?.status === 'rejected')
+          throw webResult.reason
+        process.exit(0)
+      }
+      catch (error) {
+        logger.error('Gateway shutdown failed', error)
+        process.exit(1)
+      }
+    })()
+    return shutdownPromise
   }
 
   process.on('SIGTERM', shutdown)
@@ -48,9 +96,7 @@ export async function startGateway(config: AppConfig): Promise<Gateway> {
   logger.info('Daemon running. Press Ctrl+C to stop.')
 
   // Keep process alive
-  await new Promise(() => {
+  return new Promise<never>(() => {
     // Never resolves — daemon stays alive until signal
   })
-
-  return gateway
 }

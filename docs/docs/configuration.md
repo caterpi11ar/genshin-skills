@@ -31,7 +31,7 @@ title: 配置
     "routines": {
       "daily": ["welkin-moon", "claim-mail"],
       "rewards": ["welkin-moon", "claim-mail", "claim-achievements", "claim-event-rewards", "battle-pass-claim"],
-      "full": ["welkin-moon", "claim-mail", "claim-achievements", "claim-event-rewards", "expedition-collect", "battle-pass-claim"]
+      "full": ["welkin-moon", "claim-mail", "claim-achievements", "claim-event-rewards", "battle-pass-claim"]
     }
   },
   "schedule": { "cron": "0 6 * * *", "timezone": "Asia/Shanghai" },
@@ -51,7 +51,12 @@ title: 配置
     "dismissSelectors": [".guide-close-btn"]
   },
   "web": { "port": 3000, "enabled": true },
-  "memory": { "dataDir": "~/.giclaw/data", "maxHistory": 100 },
+  "memory": {
+    "dataDir": "~/.giclaw/data",
+    "maxHistory": 100,
+    "maxArtifactFiles": 1000,
+    "maxArtifactBytes": 1073741824
+  },
   "queue": { "maxDepth": 10 },
   "logLevel": "info"
 }
@@ -71,7 +76,7 @@ title: 配置
 | 配置项 | 说明 | 默认值 |
 |--------|------|--------|
 | `model.name` | 上游实际提供的模型名称；当前已验收环境使用 `gpt-5.6-sol` | `""` |
-| `model.baseUrl` | OpenAI 兼容 API 地址 | `""` |
+| `model.baseUrl` | OpenAI 兼容 API 地址；远程地址必须使用 HTTPS，仅 loopback 可使用 HTTP | `""` |
 | `model.apiKey` | API 密钥 | `""` |
 | `model.family` | Midscene 使用的模型家族；GPT 5.x 兼容模型使用 `"gpt-5"` | `""` |
 | `model.stream` | 强制以流式 Chat Completions 请求上游，并在项目内聚合为完整响应 | `false` |
@@ -90,7 +95,7 @@ title: 配置
 
 - `daily`：只运行月卡和邮件的轻量流程。
 - `rewards`：月卡、邮件、成就、活动和纪行；与默认启用集合一致，是完整奖励流程。
-- `full`：在 `rewards` 基础上加入探索派遣。该能力当前暂停，默认 schema 尚未移除它，因此现阶段应使用 `rewards`，或在自己的 `tasks.routines.full` 中显式调整。
+- `full`：当前与 `rewards` 一致，只包含 5 个已验收奖励任务。暂停的探索派遣不会由默认流程调用。
 
 ### 调度
 
@@ -138,6 +143,8 @@ title: 配置
 |--------|------|--------|
 | `memory.dataDir` | 数据存储目录（transcript、截图等） | `"~/.giclaw/data"` |
 | `memory.maxHistory` | 保留的运行历史记录条数 | `100` |
+| `memory.maxArtifactFiles` | transcript 与截图合计最多保留文件数 | `1000` |
+| `memory.maxArtifactBytes` | transcript 与截图合计最大字节数，超出时从最旧文件开始清理 | `1073741824`（1 GiB） |
 
 ### 队列
 

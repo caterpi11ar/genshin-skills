@@ -13,7 +13,9 @@ const frontmatterSchema = z.object({
   description: z.string().min(1),
   enabled: z.boolean().default(true),
   timeoutMs: z.number().int().positive().default(600_000),
-  retries: z.number().int().min(0).default(1),
+  // Replaying a partially completed UI workflow is unsafe because the page is
+  // no longer guaranteed to be at the skill's starting state.
+  retries: z.literal(0).default(0),
   dependsOn: z.array(z.string()).default([]),
 })
 

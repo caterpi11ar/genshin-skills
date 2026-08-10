@@ -1,3 +1,4 @@
+import type { ScheduledTask } from 'node-cron'
 import cron from 'node-cron'
 import { logger } from '../utils/logger.js'
 
@@ -11,7 +12,8 @@ export interface SchedulerOptions {
  * Thin wrapper around node-cron.
  */
 export class Scheduler {
-  private job: cron.ScheduledTask | null = null
+  private job: ScheduledTask | null = null
+  private stopPromise: Promise<void> | null = null
   private cronExpr: string
   private timezone: string
   private onTick: () => void
@@ -33,12 +35,26 @@ export class Scheduler {
     })
   }
 
-  stop(): void {
-    if (this.job) {
-      this.job.stop()
-      this.job = null
-      logger.info('Scheduler stopped')
-    }
+  stop(): Promise<void> {
+    if (this.stopPromise)
+      return this.stopPromise
+    if (!this.job)
+      return Promise.resolve()
+
+    const job = this.job
+    const operation = Promise.resolve()
+      .then(() => job.stop())
+      .then(() => {
+        if (this.job === job)
+          this.job = null
+        logger.info('Scheduler stopped')
+      })
+    const tracked = operation.finally(() => {
+      if (this.stopPromise === tracked)
+        this.stopPromise = null
+    })
+    this.stopPromise = tracked
+    return tracked
   }
 
   getCronExpr(): string {

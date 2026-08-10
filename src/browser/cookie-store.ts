@@ -1,4 +1,6 @@
-import { access, readFile, unlink, writeFile } from 'node:fs/promises'
+import { readFile, unlink } from 'node:fs/promises'
+import { z } from 'zod'
+import { atomicWritePrivateFile, securePrivateFile } from '../config/paths.js'
 import { logger } from '../utils/logger.js'
 
 export interface Cookie {
@@ -12,25 +14,37 @@ export interface Cookie {
   sameSite?: 'Strict' | 'Lax' | 'None'
 }
 
+const cookieSchema: z.ZodType<Cookie> = z.object({
+  name: z.string(),
+  value: z.string(),
+  domain: z.string().optional(),
+  path: z.string().optional(),
+  expires: z.number().finite().optional(),
+  httpOnly: z.boolean().optional(),
+  secure: z.boolean().optional(),
+  sameSite: z.enum(['Strict', 'Lax', 'None']).optional(),
+})
+
+const cookiesSchema = z.array(cookieSchema)
+
 export async function loadCookies(path: string): Promise<Cookie[] | null> {
   try {
-    await access(path)
+    if (!(await securePrivateFile(path)))
+      return null
     const raw = await readFile(path, 'utf-8')
-    const cookies = JSON.parse(raw) as Cookie[]
+    const cookies = cookiesSchema.parse(JSON.parse(raw))
     logger.info('Cookies loaded from file')
     return cookies
   }
   catch (err) {
-    if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
-      return null
-    }
     logger.warn('Failed to load cookies', err)
     return null
   }
 }
 
 export async function saveCookies(path: string, cookies: Cookie[]): Promise<void> {
-  await writeFile(path, JSON.stringify(cookies, null, 2))
+  const validated = cookiesSchema.parse(cookies)
+  await atomicWritePrivateFile(path, JSON.stringify(validated, null, 2))
   logger.info('Cookies saved to file')
 }
 

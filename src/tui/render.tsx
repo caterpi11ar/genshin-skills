@@ -5,5 +5,11 @@ import { Dashboard } from './Dashboard.js'
 
 export function renderDashboard(gateway: Gateway): void {
   logger.mute()
-  render(<Dashboard gateway={gateway} />)
+  try {
+    render(<Dashboard gateway={gateway} />)
+  }
+  catch (error) {
+    logger.unmute()
+    throw error
+  }
 }

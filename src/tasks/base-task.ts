@@ -5,6 +5,8 @@ import type { logger } from '../utils/logger.js'
 
 export interface TaskContext {
   page: Page
+  /** Aborted when the attempt times out. Task implementations must stop promptly. */
+  signal: AbortSignal
   modelConfig: Record<string, string>
   streamModelResponses?: boolean
   config: AppConfig

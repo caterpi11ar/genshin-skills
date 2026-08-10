@@ -1,7 +1,20 @@
 import { logger } from './logger.js'
 
-export function delay(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms))
+export function delay(ms: number, signal?: AbortSignal): Promise<void> {
+  signal?.throwIfAborted()
+
+  return new Promise((resolve, reject) => {
+    let timer: ReturnType<typeof setTimeout>
+    const onAbort = () => {
+      clearTimeout(timer)
+      reject(signal?.reason)
+    }
+    timer = setTimeout(() => {
+      signal?.removeEventListener('abort', onAbort)
+      resolve()
+    }, ms)
+    signal?.addEventListener('abort', onAbort, { once: true })
+  })
 }
 
 export interface RetryOptions {
@@ -16,26 +29,23 @@ export async function retry<T>(
   options: RetryOptions,
 ): Promise<T> {
   const { retries, delayMs = 1000, onRetry, shouldRetry = () => true } = options
-  let lastError: unknown
+  let attempt = 0
 
-  for (let attempt = 0; attempt <= retries; attempt++) {
+  while (true) {
     try {
       return await fn()
     }
     catch (err) {
-      lastError = err
       if (attempt < retries && shouldRetry(err)) {
         logger.warn(
           `Attempt ${attempt + 1}/${retries + 1} failed, retrying in ${delayMs}ms`,
         )
         onRetry?.(attempt + 1, err)
         await delay(delayMs)
+        attempt++
+        continue
       }
-      else {
-        throw err
-      }
+      throw err
     }
   }
-
-  throw lastError
 }

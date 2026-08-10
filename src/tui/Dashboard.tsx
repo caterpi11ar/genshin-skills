@@ -4,7 +4,7 @@ import type { RunResult } from '../tasks/task-runner.js'
 import type { LogEntry } from '../utils/logger.js'
 import process from 'node:process'
 import { Box, Text, useApp, useInput } from 'ink'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { logger } from '../utils/logger.js'
 import { LOG_VISIBLE_COUNT, LogPanel } from './components/LogPanel.js'
 import { StatusBar } from './components/StatusBar.js'
@@ -21,6 +21,8 @@ export function Dashboard({ gateway }: DashboardProps) {
   )
   const [lastResult, setLastResult] = useState<RunResult | null>(null)
   const [logs, setLogs] = useState<LogEntry[]>([])
+  const pendingLogs = useRef<LogEntry[]>([])
+  const logFlush = useRef<ReturnType<typeof setImmediate>>()
 
   // Subscribe to gateway state changes
   useEffect(() => {
@@ -47,15 +49,28 @@ export function Dashboard({ gateway }: DashboardProps) {
 
   // Subscribe to logger events
   useEffect(() => {
-    const onLog = (entry: LogEntry) => {
+    const flushLogs = () => {
+      logFlush.current = undefined
+      const batch = pendingLogs.current
+      pendingLogs.current = []
       setLogs((prev) => {
-        const next = [...prev, entry]
+        const next = [...prev, ...batch]
         return next.length > 200 ? next.slice(-200) : next
       })
+    }
+    const onLog = (entry: LogEntry) => {
+      pendingLogs.current.push(entry)
+      // A failing task can emit many diagnostics synchronously. Coalesce that
+      // burst into one render while retaining the same bounded 200-entry view.
+      if (!logFlush.current)
+        logFlush.current = setImmediate(flushLogs)
     }
     logger.on('log', onLog)
     return () => {
       logger.off('log', onLog)
+      clearImmediate(logFlush.current)
+      logFlush.current = undefined
+      pendingLogs.current = []
     }
   }, [])
 

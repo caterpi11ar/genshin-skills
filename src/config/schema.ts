@@ -1,5 +1,52 @@
+import cron from 'node-cron'
 import { z } from 'zod'
 import { PATHS } from './paths.js'
+
+function isHttpsOrLoopbackHttp(value: string): boolean {
+  if (value === '')
+    return true
+
+  if (value !== value.trim() || !/^https?:\/\//iu.test(value))
+    return false
+
+  try {
+    const url = new URL(value)
+    return url.protocol === 'https:'
+      || (url.protocol === 'http:' && ['127.0.0.1', 'localhost', '[::1]'].includes(url.hostname))
+  }
+  catch {
+    return false
+  }
+}
+
+function hasNoUrlCredentials(value: string): boolean {
+  if (value === '')
+    return true
+
+  try {
+    const url = new URL(value)
+    const authority = value.slice(value.indexOf('://') + 3).split(/[/?#]/u, 1)[0]!
+    return !authority.includes('@') && !url.username && !url.password
+  }
+  catch {
+    return false
+  }
+}
+
+export const modelBaseUrlSchema = z.string().refine(
+  isHttpsOrLoopbackHttp,
+  'must use HTTPS unless the host is loopback',
+).refine(hasNoUrlCredentials, 'must not contain credentials').refine((value) => {
+  if (value === '')
+    return true
+  try {
+    const url = new URL(value)
+    return !value.includes('?') && !value.includes('#') && !url.search && !url.hash
+  }
+  catch {
+    return false
+  }
+}, 'must not contain query parameters or fragments')
 
 export const appConfigSchema = z.object({
   locale: z.enum(['zh', 'en']).default('zh'),
@@ -9,24 +56,26 @@ export const appConfigSchema = z.object({
       startupUrl: z
         .string()
         .url()
+        .refine(isHttpsOrLoopbackHttp, 'must use HTTPS unless the host is loopback')
+        .refine(hasNoUrlCredentials, 'must not contain credentials')
         .default('https://ys.mihoyo.com/cloud/'),
       headless: z.boolean().default(true),
       viewport: z
         .object({
-          width: z.number().default(1280),
-          height: z.number().default(720),
+          width: z.number().int().positive().max(16_384).default(1280),
+          height: z.number().int().positive().max(16_384).default(720),
         })
         .default({}),
       cookieFilePath: z.string().default(PATHS.cookiePath),
-      dialogAutoDismissMs: z.number().default(10_000),
+      dialogAutoDismissMs: z.number().int().nonnegative().max(3_600_000).default(10_000),
     })
     .default({}),
 
   login: z
     .object({
-      successSelector: z.string().default('.wel-card__content--start'),
-      timeoutMs: z.number().default(300_000),
-      pollIntervalMs: z.number().default(500),
+      successSelector: z.string().min(1).max(1_000).default('.wel-card__content--start'),
+      timeoutMs: z.number().int().positive().max(86_400_000).default(300_000),
+      pollIntervalMs: z.number().int().positive().max(60_000).default(500),
     })
     .default({}),
 
@@ -39,10 +88,10 @@ export const appConfigSchema = z.object({
 
   model: z
     .object({
-      name: z.string().default(''),
-      baseUrl: z.string().default(''),
-      apiKey: z.string().default(''),
-      family: z.string().default(''),
+      name: z.string().max(500).default(''),
+      baseUrl: modelBaseUrlSchema.default(''),
+      apiKey: z.string().max(10_000).default(''),
+      family: z.string().max(100).default(''),
       stream: z.boolean().default(false),
     })
     .default({}),
@@ -55,46 +104,56 @@ export const appConfigSchema = z.object({
 
   tasks: z
     .object({
-      enabled: z.array(z.string()).min(1).default([
+      enabled: z.array(z.string().min(1)).min(1).max(100).default([
         'welkin-moon',
         'claim-mail',
         'claim-achievements',
         'claim-event-rewards',
         'battle-pass-claim',
       ]),
-      skillsDirs: z.array(z.string()).min(1).default([PATHS.builtinSkillsDir, './skills', PATHS.skillsDir]),
-      routines: z.record(z.array(z.string()).min(1)).default({
+      skillsDirs: z.array(z.string().min(1)).min(1).max(50).default([PATHS.builtinSkillsDir, './skills', PATHS.skillsDir]),
+      routines: z.record(z.array(z.string().min(1)).min(1).max(100)).default({
         daily: ['welkin-moon', 'claim-mail'],
         rewards: ['welkin-moon', 'claim-mail', 'claim-achievements', 'claim-event-rewards', 'battle-pass-claim'],
-        full: ['welkin-moon', 'claim-mail', 'claim-achievements', 'claim-event-rewards', 'expedition-collect', 'battle-pass-claim'],
+        full: ['welkin-moon', 'claim-mail', 'claim-achievements', 'claim-event-rewards', 'battle-pass-claim'],
       }),
     })
     .default({}),
 
   schedule: z
     .object({
-      cron: z.string().default('0 6 * * *'),
-      timezone: z.string().default('Asia/Shanghai'),
+      cron: z.string().min(1).max(100).refine(value => cron.validate(value), 'must be a valid cron expression').default('0 6 * * *'),
+      timezone: z.string().min(1).max(100).refine((value) => {
+        try {
+          new Intl.DateTimeFormat('en', { timeZone: value }).format()
+          return true
+        }
+        catch {
+          return false
+        }
+      }, 'must be a valid IANA timezone').default('Asia/Shanghai'),
     })
     .default({}),
 
   web: z
     .object({
-      port: z.number().default(3000),
+      port: z.number().int().min(1).max(65_535).default(3000),
       enabled: z.boolean().default(true),
     })
     .default({}),
 
   memory: z
     .object({
-      dataDir: z.string().default(PATHS.dataDir),
-      maxHistory: z.number().default(100),
+      dataDir: z.string().min(1).default(PATHS.dataDir),
+      maxHistory: z.number().int().positive().max(10_000).default(100),
+      maxArtifactFiles: z.number().int().positive().max(100_000).default(1_000),
+      maxArtifactBytes: z.number().int().positive().max(100 * 1024 * 1024 * 1024).default(1024 * 1024 * 1024),
     })
     .default({}),
 
   queue: z
     .object({
-      maxDepth: z.number().int().positive().default(10),
+      maxDepth: z.number().int().positive().max(10_000).default(10),
     })
     .default({}),
 

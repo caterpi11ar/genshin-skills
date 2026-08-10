@@ -4,7 +4,7 @@ name: Claim Event Rewards
 description: Open the events overview and claim rewards that are already unlocked.
 enabled: true
 timeoutMs: 600000
-retries: 1
+retries: 0
 dependsOn:
   - welkin-moon
 ---

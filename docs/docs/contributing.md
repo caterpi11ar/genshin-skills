@@ -23,24 +23,46 @@ npx tsx src/cli.ts init
 ## 开发工作流
 
 ```bash
-# Dev loop（文件变更自动重启）
+# 直接运行 TypeScript 源码
 pnpm dev
 
 # 运行测试
 pnpm test
 
+# 监听模式
+pnpm test:watch
+
+# 运行覆盖率门禁并生成 coverage/ 报告
+pnpm test:coverage
+
+# 不改写文件的代码规范检查
+pnpm lint:check
+
+# TypeScript 类型检查
+pnpm typecheck
+
+# 检查 high / critical 依赖漏洞
+pnpm audit --audit-level high
+
 # 校验任务定义、依赖和命名流程
-pnpm start -- skills
+pnpm start skills
 
 # 构建
 pnpm build
+
+# 检查实际发布文件清单
+pnpm test:package
 
 # 从构建产物运行
 pnpm start
 ```
 
+`pnpm test:coverage` 会覆盖配置、技能加载、步骤解析与执行、模型流式响应、登录与浏览器会话、取消与超时、队列、Gateway、HTTP/WebSocket、CLI、持久化和 TUI。门禁要求全局行、语句、函数和分支均不低于 99.8%，且每个存在可执行指标的源文件各项不低于 98%。纯类型声明不计入覆盖率。覆盖率是防回退信号，不代表视觉模型、真实账号、浏览器 UI、静态页面或技能提示已经被完整证明。
+
+Pull Request 和 `main` 分支推送会在 GitHub Actions 自动运行 high / critical 依赖漏洞审计、运行数据与疑似凭据扫描、代码规范、类型检查、覆盖率测试、固定 seed 乱序测试、干净应用构建、发布包 smoke、文档类型检查和文档构建。自动化测试不会读取真实账号 Cookie、调用真实模型或启动真实游戏流程；涉及游戏界面、账号状态、模型表现或网络兼容性的变化仍需单独做真实环境验收。
+
 :::note
-`pnpm dev` 通过 `tsx watch` 直接运行 TypeScript，适合开发时使用。`pnpm build` 产出 `dist/`，通过 `pnpm start` 或全局 `giclaw` 命令运行。
+`pnpm dev` 通过 `tsx` 直接运行 TypeScript 源码，不会自动监听文件变化。`pnpm build` 产出 `dist/`，通过 `pnpm start` 或全局 `giclaw` 命令运行。
 :::
 
 ## 添加新技能

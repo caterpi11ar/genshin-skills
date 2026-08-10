@@ -2,7 +2,7 @@ import type { AppConfig } from './schema.js'
 import { access, readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { ConfigError } from '../utils/errors.js'
-import { PATHS } from './paths.js'
+import { PATHS, securePrivateFile } from './paths.js'
 import { appConfigSchema } from './schema.js'
 
 /**
@@ -39,13 +39,13 @@ function deepMerge(a: Record<string, unknown>, b: Record<string, unknown>): Reco
  */
 async function loadJsonFile(path: string): Promise<Record<string, unknown>> {
   try {
-    const raw = await readFile(resolve(path), 'utf-8')
+    const resolvedPath = resolve(path)
+    if (!(await securePrivateFile(resolvedPath)))
+      return {}
+    const raw = await readFile(resolvedPath, 'utf-8')
     return JSON.parse(raw) as Record<string, unknown>
   }
   catch (err) {
-    if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
-      return {}
-    }
     throw new ConfigError(`Failed to parse config file: ${path}`, err)
   }
 }

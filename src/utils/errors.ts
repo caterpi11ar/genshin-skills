@@ -1,3 +1,7 @@
+export function toError(value: unknown): Error {
+  return value instanceof Error ? value : new Error(String(value))
+}
+
 export class AppError extends Error {
   constructor(
     message: string,
@@ -54,6 +58,26 @@ export class TimeoutError extends AppError {
     )
     this.name = 'TimeoutError'
   }
+}
+
+export class CancellationError extends AppError {
+  constructor(operation: string, cause?: unknown) {
+    super(`Operation "${operation}" was cancelled`, 'CANCELLED', cause)
+    this.name = 'CancellationError'
+  }
+}
+
+export class QuarantinedError extends AppError {
+  constructor(message: string, cause?: unknown) {
+    super(message, 'QUARANTINED', cause)
+    this.name = 'QuarantinedError'
+  }
+}
+
+export function cancellationError(operation: string, reason?: unknown): CancellationError {
+  return reason instanceof CancellationError
+    ? reason
+    : new CancellationError(operation, reason)
 }
 
 export class SessionError extends AppError {

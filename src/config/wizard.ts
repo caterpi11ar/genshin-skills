@@ -1,16 +1,20 @@
 import type { ProviderPreset } from './presets.js'
-import { readFile, writeFile } from 'node:fs/promises'
-import { ensureStateDir, PATHS } from './paths.js'
+import { readFile } from 'node:fs/promises'
+import { sanitizeSensitiveString } from '../utils/logger.js'
+import { atomicWritePrivateFile, ensureStateDir, PATHS, securePrivateFile } from './paths.js'
 import {
   CUSTOM_PROVIDER_VALUE,
   PROVIDER_PRESETS,
 
 } from './presets.js'
+import { modelBaseUrlSchema } from './schema.js'
 
 const PLACEHOLDER_KEYS = ['your-api-key-here', 'sk-xxx', '']
 
 export async function isModelConfigured(): Promise<boolean> {
   try {
+    if (!(await securePrivateFile(PATHS.configPath)))
+      return false
     const raw = await readFile(PATHS.configPath, 'utf-8')
     const config = JSON.parse(raw) as Record<string, unknown>
     const model = config.model as Record<string, unknown> | undefined
@@ -85,8 +89,9 @@ export async function runSetupWizard(): Promise<void> {
       validate: (val: string) => {
         if (!val)
           return 'Base URL is required'
-        if (!/^https?:\/\//.test(val))
-          return 'Must start with http:// or https://'
+        const result = modelBaseUrlSchema.safeParse(val)
+        if (!result.success)
+          return result.error.issues[0]!.message
         return true
       },
     })
@@ -115,7 +120,7 @@ export async function runSetupWizard(): Promise<void> {
     console.log('\x1B[1mConfiguration summary:\x1B[0m')
     console.log(`  Language:     ${locale === 'zh' ? '中文' : 'English'}`)
     console.log(`  Provider:     ${preset?.label ?? 'Custom'}`)
-    console.log(`  Base URL:     ${baseUrl}`)
+    console.log(`  Base URL:     ${sanitizeSensitiveString(baseUrl)}`)
     console.log(`  API Key:      ${maskKey(apiKey)}`)
     console.log(`  Model Name:   ${modelName}`)
     console.log()
@@ -131,6 +136,7 @@ export async function runSetupWizard(): Promise<void> {
 
     let existing: Record<string, unknown> = {}
     try {
+      await securePrivateFile(PATHS.configPath)
       const raw = await readFile(PATHS.configPath, 'utf-8')
       existing = JSON.parse(raw) as Record<string, unknown>
     }
@@ -150,7 +156,7 @@ export async function runSetupWizard(): Promise<void> {
       family: providerValue === CUSTOM_PROVIDER_VALUE ? '' : providerValue,
     }
 
-    await writeFile(PATHS.configPath, `${JSON.stringify(existing, null, 2)}\n`, 'utf-8')
+    await atomicWritePrivateFile(PATHS.configPath, `${JSON.stringify(existing, null, 2)}\n`)
 
     // 8. Success message
     console.log()

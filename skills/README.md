@@ -9,7 +9,7 @@ name: My Skill
 description: A short description.
 enabled: false
 timeoutMs: 300000
-retries: 1
+retries: 0
 dependsOn:
   - welkin-moon
 ---
@@ -37,6 +37,8 @@ dependsOn:
 
 `Background`、`Goal` 和 `Known Issues` 会注入视觉 Agent。`dependsOn` 会自动展开、去重和排序。后面的 `skillsDirs` 可用同 ID 覆盖前面的内置技能。
 
+UI 工作流一旦执行过部分步骤就不再具备可靠起点，因此 `retries` 目前只能为 `0`。失败会立即停止整次运行；确认现场后再由用户重新启动，避免在未知界面重复领取或误点。
+
 ```bash
 giclaw skills
 giclaw run --dry-run --tasks my-skill
@@ -56,4 +58,4 @@ giclaw run --no-headless --tasks my-skill
 | `claim-event-rewards` | 启用 | 已通过 |
 | `expedition-collect` | 关闭 | 暂停，未完成领取与再次派遣闭环 |
 
-默认直接运行全部 5 个已验收任务；使用 `daily` 可以只运行月卡和邮件，`rewards` 可显式选择完整奖励流程。默认 `full` 流程仍包含暂停能力，现阶段不建议直接运行。
+默认直接运行全部 5 个已验收任务；使用 `daily` 可以只运行月卡和邮件，`rewards` 与 `full` 都只包含已验收奖励流程。暂停的探索派遣不会被任何默认流程调用。

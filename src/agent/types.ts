@@ -5,6 +5,7 @@ import type { SkillStep } from '../skills/types.js'
 export interface StepContext {
   skillId: string
   page: Page
+  signal: AbortSignal
   steps: SkillStep[]
   modelConfig: Record<string, string>
   streamModelResponses?: boolean

@@ -30,7 +30,7 @@
 
 ## 安装
 
-运行环境：**Node >= 20**
+运行环境：**Node >= 20.9**
 
 ```bash
 npm install -g giclaw@latest
@@ -64,7 +64,7 @@ giclaw run --routine daily    # 仅运行月卡 + 邮件
 giclaw run --routine rewards  # 显式运行完整奖励流程
 ```
 
-`full` 流程当前仍包含已暂停的 `expedition-collect`，不建议直接运行；需要完整奖励领取时使用 `rewards`。
+`daily` 只运行月卡和邮件；`rewards` 与 `full` 都只包含 5 个已验收奖励任务。暂停的 `expedition-collect` 不会被任何默认流程调用。
 
 自定义技能只需在 `~/.giclaw/skills/` 下创建 `SKILL.md`，详见 [编写技能](https://giclaw.cn/docs/skills/writing-skills)。
 

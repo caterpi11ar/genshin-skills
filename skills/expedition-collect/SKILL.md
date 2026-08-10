@@ -4,7 +4,7 @@ name: Collect Expeditions
 description: Open the expedition interface, collect completed expeditions, and re-dispatch characters.
 enabled: false
 timeoutMs: 600000
-retries: 1
+retries: 0
 dependsOn:
   - welkin-moon
 ---

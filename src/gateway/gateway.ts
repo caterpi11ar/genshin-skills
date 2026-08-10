@@ -2,17 +2,19 @@ import type { AppConfig } from '../config/schema.js'
 import type { RunSummary } from '../memory/types.js'
 import type { RunResult } from '../tasks/task-runner.js'
 import type { Phase, ProgressEvent } from '../utils/progress.js'
-import type { GatewaySnapshot, IGateway } from './types.js'
+import type { EnqueuedRunReceipt, GatewaySnapshot, IGateway } from './types.js'
 import { randomUUID } from 'node:crypto'
 import { join } from 'node:path'
 import { loginFlow } from '../browser/login.js'
 import { SessionManager } from '../browser/session-manager.js'
+import { enforceArtifactRetention } from '../memory/artifact-retention.js'
 import { StateStore } from '../memory/state-store.js'
 import { TranscriptWriter } from '../memory/transcript.js'
 import { TaskQueue } from '../queue/task-queue.js'
 import { SkillRegistry } from '../skills/registry.js'
 import { TaskRunner } from '../tasks/task-runner.js'
-import { logger } from '../utils/logger.js'
+import { cancellationError, CancellationError, QuarantinedError, TimeoutError, toError } from '../utils/errors.js'
+import { logger, sanitizeBoundedText } from '../utils/logger.js'
 import { Scheduler } from './scheduler.js'
 import { GatewayState } from './state.js'
 
@@ -25,6 +27,11 @@ export class Gateway implements IGateway {
   private skillRegistry: SkillRegistry
   private scheduler: Scheduler | null = null
   private stateStore: StateStore
+  private readonly activeControllers = new Map<string, AbortController>()
+  private readonly activeSessions = new Set<SessionManager>()
+  private shutdownPromise: Promise<void> | null = null
+
+  private static readonly SHUTDOWN_TIMEOUT_MS = 7_000
 
   constructor(config: AppConfig) {
     this.config = config
@@ -43,6 +50,15 @@ export class Gateway implements IGateway {
     })
     this.taskRunner.on('task:index', (data: { taskIndex: number, taskTotal: number, taskId: string }) => {
       this.state.update({ taskIndex: data.taskIndex, taskTotal: data.taskTotal })
+    })
+    this.taskRunner.on('quarantine', (error: QuarantinedError) => {
+      // A stopped attempt may still own browser/model work. Close admission in
+      // the same synchronous event turn so TaskQueue cannot dequeue a waiting
+      // run that would launch another browser before TaskRunner rejects it.
+      this.queue.close(error)
+      void this.scheduler?.stop().catch((stopError) => {
+        logger.warn('Could not stop scheduler after task runner quarantine', stopError)
+      })
     })
 
     // Keep queue depth in sync
@@ -115,23 +131,50 @@ export class Gateway implements IGateway {
   /**
    * Enqueue a run through the FIFO queue. Returns when the run completes.
    */
-  async enqueueRun(
+  enqueueRun(
     trigger: 'cron' | 'manual' | 'api',
     taskIds?: string[],
   ): Promise<RunResult> {
+    try {
+      return this.enqueueRunAccepted(trigger, taskIds).completion
+    }
+    catch (error) {
+      return Promise.reject(error)
+    }
+  }
+
+  /**
+   * Atomically submit a run and return an admission receipt. Unlike
+   * enqueueRun(), this does not wait for the browser pipeline to finish.
+   */
+  enqueueRunAccepted(
+    trigger: 'cron' | 'manual' | 'api',
+    taskIds?: string[],
+  ): EnqueuedRunReceipt {
     const runId = randomUUID()
     const item = { runId, trigger, taskIds, enqueuedAt: new Date() }
+    const controller = new AbortController()
+    this.activeControllers.set(runId, controller)
 
-    return this.queue.enqueue(item, () =>
-      this.executePipeline(runId, trigger, taskIds))
+    try {
+      const receipt = this.queue.submit(item, () =>
+        this.executePipeline(runId, trigger, taskIds, controller.signal))
+      return {
+        status: receipt.status,
+        completion: receipt.completion.finally(() => this.activeControllers.delete(runId)),
+      }
+    }
+    catch (error) {
+      this.activeControllers.delete(runId)
+      throw error
+    }
   }
 
   /**
    * Run once without going through the queue (for CLI `run` command).
    */
   async runOnce(taskIds?: string[]): Promise<RunResult> {
-    const runId = randomUUID()
-    return this.executePipeline(runId, 'manual', taskIds)
+    return this.enqueueRun('manual', taskIds)
   }
 
   async getRunHistory(limit?: number): Promise<RunSummary[]> {
@@ -142,8 +185,12 @@ export class Gateway implements IGateway {
    * Start daemon mode: scheduler + optional web + optional TUI.
    */
   async start(): Promise<void> {
-    // Start scheduler
-    this.scheduler = new Scheduler({
+    if (this.shutdownPromise)
+      throw new Error('Gateway cannot be started after shutdown has begun')
+    if (this.scheduler)
+      throw new Error('Gateway is already started')
+
+    const scheduler = new Scheduler({
       cronExpr: this.config.schedule.cron,
       timezone: this.config.schedule.timezone,
       onTick: () => {
@@ -153,18 +200,108 @@ export class Gateway implements IGateway {
         })
       },
     })
-    this.scheduler.start()
+    this.scheduler = scheduler
+    try {
+      scheduler.start()
+    }
+    catch (error) {
+      try {
+        await scheduler.stop()
+      }
+      catch (stopError) {
+        logger.warn('Could not roll back scheduler after startup failure', stopError)
+      }
+      this.scheduler = null
+      throw error
+    }
 
     logger.info('Gateway started in daemon mode')
   }
 
-  async shutdown(): Promise<void> {
+  shutdown(): Promise<void> {
+    if (!this.shutdownPromise)
+      this.shutdownPromise = this.shutdownInternal()
+    return this.shutdownPromise
+  }
+
+  private async shutdownInternal(): Promise<void> {
     logger.info('Gateway shutting down')
-    if (this.scheduler) {
-      this.scheduler.stop()
+    const errors: Error[] = []
+    const deadlineAt = Date.now() + Gateway.SHUTDOWN_TIMEOUT_MS
+    try {
+      await this.scheduler?.stop()
     }
-    await this.queue.drain()
+    catch (error) {
+      errors.push(toError(error))
+    }
+
+    const cancellation = new CancellationError('gateway shutdown')
+    try {
+      this.queue.close(cancellation)
+    }
+    catch (error) {
+      errors.push(toError(error))
+    }
+    for (const controller of this.activeControllers.values()) {
+      try {
+        controller.abort(cancellation)
+      }
+      catch (error) {
+        errors.push(toError(error))
+      }
+    }
+
+    const sessionCleanup = Promise.allSettled(
+      Array.from(this.activeSessions, async (session) => {
+        await session.close()
+        this.activeSessions.delete(session)
+      }),
+    )
+    try {
+      await this.queue.drain(Math.max(0, deadlineAt - Date.now()))
+    }
+    catch (error) {
+      logger.warn('Gateway shutdown timed out while draining active work', error)
+      errors.push(toError(error))
+    }
+    try {
+      const results = await this.waitForSessionCleanup(
+        sessionCleanup,
+        Math.max(0, deadlineAt - Date.now()),
+      )
+      for (const result of results) {
+        if (result.status === 'rejected')
+          errors.push(toError(result.reason))
+      }
+    }
+    catch (error) {
+      errors.push(toError(error))
+    }
+
+    if (errors.length > 0)
+      throw new AggregateError(errors, 'Gateway shutdown did not complete cleanly')
     logger.info('Gateway shutdown complete')
+  }
+
+  private async waitForSessionCleanup(
+    cleanup: Promise<PromiseSettledResult<void>[]>,
+    timeoutMs: number,
+  ): Promise<PromiseSettledResult<void>[]> {
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const deadline = new Promise<never>((_, reject) => {
+      timer = setTimeout(
+        reject,
+        timeoutMs,
+        new TimeoutError('browser session cleanup', timeoutMs),
+      )
+    })
+    try {
+      return await Promise.race([cleanup, deadline])
+    }
+    finally {
+      if (timer)
+        clearTimeout(timer)
+    }
   }
 
   private emitProgress(phase: Phase, pipelineStart: number, overrides?: Partial<ProgressEvent>): void {
@@ -181,8 +318,13 @@ export class Gateway implements IGateway {
       timestamp: new Date().toISOString(),
       ...overrides,
     }
-    this.state.emit('progress', event)
-    logger.emitProgress(event)
+    const sanitizedEvent: ProgressEvent = {
+      ...event,
+      action: event.action === null ? null : sanitizeBoundedText(event.action),
+      reason: event.reason === null ? null : sanitizeBoundedText(event.reason),
+    }
+    this.state.emit('progress', sanitizedEvent)
+    logger.emitProgress(sanitizedEvent)
   }
 
   /**
@@ -192,6 +334,7 @@ export class Gateway implements IGateway {
     runId: string,
     trigger: 'cron' | 'manual' | 'api',
     taskIds?: string[],
+    signal?: AbortSignal,
   ): Promise<RunResult> {
     const pipelineStart = Date.now()
     this.state.update({ running: true, currentRunId: runId, phase: 'login', taskIndex: 0, taskTotal: 0, currentStep: 0, elapsed: 0, currentAction: null, currentReason: null })
@@ -199,13 +342,18 @@ export class Gateway implements IGateway {
     this.emitProgress('login', pipelineStart)
 
     const session = new SessionManager(this.config)
+    this.activeSessions.add(session)
     const transcript = new TranscriptWriter(
       join(this.config.memory.dataDir, 'transcripts'),
       runId,
     )
-
     try {
-      await loginFlow(session, this.config)
+      await this.enforceArtifactRetention()
+      if (signal?.aborted)
+        throw cancellationError('gateway pipeline', signal.reason)
+      await loginFlow(session, this.config, signal)
+      if (signal?.aborted)
+        throw cancellationError('gateway pipeline', signal.reason)
 
       this.state.update({ phase: 'running' })
       this.emitProgress('running', pipelineStart)
@@ -236,7 +384,25 @@ export class Gateway implements IGateway {
       const result = await this.taskRunner.runAll(
         { page, modelConfig, streamModelResponses: this.config.model.stream, config: this.config, transcript, screenshotDir: join(this.config.memory.dataDir, 'screenshots'), onProgress },
         enabledIds,
+        signal,
       )
+
+      // TaskRunner resolving is the in-game commit point. Cancellation that
+      // arrives after it must not rewrite completed side effects as a failed
+      // run and invite a duplicate retry. Browser close remains mandatory and
+      // fatal, but this close/persist/report phase is intentionally
+      // non-cancellable.
+      await session.close()
+      this.activeSessions.delete(session)
+      try {
+        await this.enforceArtifactRetention()
+      }
+      catch (error) {
+        // Browser work is already finished and the session is closed. Cleanup
+        // metadata must not make a successful claim look failed and encourage
+        // the user to repeat side effects.
+        logger.warn('Post-run artifact retention failed after browser work completed', error)
+      }
 
       // Persist
       const summary: RunSummary = {
@@ -251,7 +417,15 @@ export class Gateway implements IGateway {
           durationMs: r.durationMs,
         })),
       }
-      await this.stateStore.updateAfterRun(summary)
+      try {
+        await this.stateStore.updateAfterRun(summary)
+      }
+      catch (error) {
+        // Persistence is observability, not part of the in-game transaction.
+        // Report the run result accurately even when local history cannot be
+        // updated, otherwise callers may retry an already completed claim.
+        logger.warn('Could not persist completed run summary', error)
+      }
 
       this.state.update({
         running: false,
@@ -272,7 +446,7 @@ export class Gateway implements IGateway {
       return result
     }
     catch (err) {
-      const error = err instanceof Error ? err : new Error(String(err))
+      const error = toError(err)
       logger.error(`Run ${runId} failed`, error)
       this.state.update({
         running: false,
@@ -287,7 +461,43 @@ export class Gateway implements IGateway {
       throw error
     }
     finally {
-      await session.close()
+      if (this.activeSessions.has(session)) {
+        try {
+          await session.close()
+          this.activeSessions.delete(session)
+        }
+        catch (err) {
+          const cleanupError = toError(err)
+          const quarantine = new QuarantinedError(
+            'Gateway stopped accepting work because a browser session could not be closed safely',
+            cleanupError,
+          )
+          logger.error(quarantine.message, cleanupError)
+          try {
+            await this.scheduler?.stop()
+          }
+          catch (stopError) {
+            logger.warn('Could not stop scheduler after unsafe session cleanup', stopError)
+          }
+          this.queue.close(quarantine)
+
+          // This cleanup runs only while another pipeline error is already
+          // propagating; do not replace that root cause.
+        }
+      }
     }
+  }
+
+  private enforceArtifactRetention(): Promise<unknown> {
+    return enforceArtifactRetention(
+      [
+        join(this.config.memory.dataDir, 'transcripts'),
+        join(this.config.memory.dataDir, 'screenshots'),
+      ],
+      {
+        maxFiles: this.config.memory.maxArtifactFiles,
+        maxBytes: this.config.memory.maxArtifactBytes,
+      },
+    )
   }
 }

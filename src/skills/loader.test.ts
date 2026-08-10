@@ -1,8 +1,16 @@
-import { mkdir, mkdtemp, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 import { loadSkills } from './loader.js'
+
+const cleanupDirs: string[] = []
+
+async function tempDir(prefix: string): Promise<string> {
+  const root = await mkdtemp(join(tmpdir(), prefix))
+  cleanupDirs.push(root)
+  return root
+}
 
 async function writeSkill(
   root: string,
@@ -25,8 +33,12 @@ ${body}
 }
 
 describe('loadSkills', () => {
+  afterEach(async () => {
+    await Promise.all(cleanupDirs.splice(0).map(path => rm(path, { recursive: true, force: true })))
+  })
+
   it('loads executable steps and context', async () => {
-    const root = await mkdtemp(join(tmpdir(), 'giclaw-skills-'))
+    const root = await tempDir('giclaw-skills-')
     await writeSkill(root, 'demo', `## Background
 background text
 
@@ -55,18 +67,18 @@ goal text
   })
 
   it('rejects empty and unknown workflows instead of silently succeeding', async () => {
-    const emptyRoot = await mkdtemp(join(tmpdir(), 'giclaw-empty-'))
+    const emptyRoot = await tempDir('giclaw-empty-')
     await writeSkill(emptyRoot, 'empty', '## Goal\nNo executable section')
     await expect(loadSkills([emptyRoot])).rejects.toThrow('has no executable steps')
 
-    const invalidRoot = await mkdtemp(join(tmpdir(), 'giclaw-invalid-'))
-    await writeSkill(invalidRoot, 'invalid', '## Steps\n- teleport: Mondstadt')
+    const invalidRoot = await tempDir('giclaw-invalid-')
+    await writeSkill(invalidRoot, 'invalid', '## Steps\n- teleport: somewhere')
     await expect(loadSkills([invalidRoot])).rejects.toThrow('Unknown step method "teleport"')
   })
 
   it('lets a later skill directory override a built-in skill', async () => {
-    const builtins = await mkdtemp(join(tmpdir(), 'giclaw-builtins-'))
-    const custom = await mkdtemp(join(tmpdir(), 'giclaw-custom-'))
+    const builtins = await tempDir('giclaw-builtins-')
+    const custom = await tempDir('giclaw-custom-')
     await writeSkill(builtins, 'demo', '## Steps\n- keyPress: Escape', 'Built in')
     await writeSkill(custom, 'demo', '## Steps\n- keyPress: Enter', 'Custom')
 
@@ -74,5 +86,67 @@ goal text
     expect(skills).toHaveLength(1)
     expect(skills[0]?.name).toBe('Custom')
     expect(skills[0]?.steps[0]?.prompt).toBe('Enter')
+  })
+
+  it('applies frontmatter defaults and parses dependencies', async () => {
+    const root = await tempDir('giclaw-defaults-')
+    const path = await writeSkill(root, 'demo', '## Steps\n- keyPress: Escape')
+    const original = await import('node:fs/promises').then(fs => fs.readFile(path, 'utf-8'))
+    await writeFile(path, original.replace('description: test skill', 'description: test skill\ndependsOn:\n  - launch'), 'utf-8')
+
+    const [skill] = await loadSkills([root])
+    expect(skill).toMatchObject({
+      enabled: true,
+      timeoutMs: 600000,
+      retries: 0,
+      dependsOn: ['launch'],
+    })
+  })
+
+  it('rejects invalid frontmatter, directory IDs, and self dependencies', async () => {
+    const invalidIdRoot = await tempDir('giclaw-invalid-id-')
+    await writeSkill(invalidIdRoot, 'Bad_ID', '## Steps\n- keyPress: Escape')
+    await expect(loadSkills([invalidIdRoot])).rejects.toThrow('must use kebab-case')
+
+    const mismatchRoot = await tempDir('giclaw-mismatch-')
+    const mismatchPath = await writeSkill(mismatchRoot, 'folder', '## Steps\n- keyPress: Escape')
+    const mismatch = await import('node:fs/promises').then(fs => fs.readFile(mismatchPath, 'utf-8'))
+    await writeFile(mismatchPath, mismatch.replace('id: folder', 'id: other'), 'utf-8')
+    await expect(loadSkills([mismatchRoot])).rejects.toThrow('must match its directory name')
+
+    const selfRoot = await tempDir('giclaw-self-dep-')
+    const selfPath = await writeSkill(selfRoot, 'self', '## Steps\n- keyPress: Escape')
+    const self = await import('node:fs/promises').then(fs => fs.readFile(selfPath, 'utf-8'))
+    await writeFile(selfPath, self.replace('description: test skill', 'description: test skill\ndependsOn: [self]'), 'utf-8')
+    await expect(loadSkills([selfRoot])).rejects.toThrow('cannot depend on itself')
+
+    const retryRoot = await tempDir('giclaw-retry-')
+    const retryPath = await writeSkill(retryRoot, 'retry', '## Steps\n- keyPress: Escape')
+    const retry = await import('node:fs/promises').then(fs => fs.readFile(retryPath, 'utf-8'))
+    await writeFile(retryPath, retry.replace('description: test skill', 'description: test skill\nretries: 1'), 'utf-8')
+    await expect(loadSkills([retryRoot])).rejects.toThrow('retries')
+  })
+
+  it('rejects malformed, empty, and invalid machine-readable step arguments', async () => {
+    const cases = [
+      ['malformed', '## Steps\n- keyPress', 'expected "- method: argument"'],
+      ['empty', '## Steps\n- keyPress:', 'Empty argument'],
+      ['coords', '## Steps\n- click: center', 'Invalid coordinates'],
+      ['duration', '## Steps\n- wait: later', 'Invalid duration'],
+      ['input', '## Steps\n- aiInput: missing target', 'expects "value => target description"'],
+    ]
+
+    for (const [id, body, message] of cases) {
+      const root = await tempDir(`giclaw-${id}-`)
+      await writeSkill(root, id!, body!)
+      await expect(loadSkills([root])).rejects.toThrow(message!)
+    }
+  })
+
+  it('ignores absent directories and entries without SKILL.md', async () => {
+    const root = await tempDir('giclaw-non-skills-')
+    await mkdir(join(root, 'empty-directory'))
+
+    await expect(loadSkills([join(root, 'missing'), root])).resolves.toEqual([])
   })
 })

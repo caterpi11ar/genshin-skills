@@ -16,7 +16,7 @@ name: My Skill
 description: One-line description for logs and API.
 enabled: false
 timeoutMs: 300000
-retries: 1
+retries: 0
 dependsOn:
   - welkin-moon
 ---
@@ -48,7 +48,7 @@ dependsOn:
 | `description` | 必填 | 日志/API 简述 |
 | `enabled` | `true` | 目录中的默认推荐状态；显式配置或 routine 仍可选择 `false` 技能 |
 | `timeoutMs` | `600000` | 每次尝试的超时 |
-| `retries` | `1` | 失败后的重试次数 |
+| `retries` | `0` | 目前固定为 `0`；部分执行后的 UI 状态不可靠，禁止自动从头重放 |
 | `dependsOn` | `[]` | 前置技能 ID；运行时自动递归加入、去重和拓扑排序 |
 
 ## 原子操作
@@ -93,4 +93,4 @@ giclaw run --dry-run --tasks my-skill
 giclaw run --no-headless --tasks my-skill
 ```
 
-`--dry-run` 只做本地结构与依赖验证，不会调用模型。实际运行失败时，transcript 会记录每一步；失败步骤会自动保存现场截图。
+`--dry-run` 只做本地结构与依赖验证，不会调用模型。实际运行失败时，transcript 会记录每一步，失败步骤会自动保存现场截图，并立即停止本次运行；确认现场后再手动重新启动。

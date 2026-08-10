@@ -34,6 +34,7 @@ export class SkillRegistry {
           const result = await executeSteps({
             skillId: skill.id,
             page: ctx.page,
+            signal: ctx.signal,
             steps: skill.steps,
             modelConfig: ctx.modelConfig,
             streamModelResponses: ctx.streamModelResponses,

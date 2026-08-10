@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 import type { ProgressEvent } from './utils/progress.js'
 import process from 'node:process'
 import { Command } from 'commander'
@@ -271,7 +273,8 @@ async function runDaemon(
     cliOverrides.browser = { headless: opts.headless as boolean }
   }
 
-  const webPort = Number(daemonOpts.port ?? 3000)
+  // Commander always supplies the option default when --port is omitted.
+  const webPort = Number(daemonOpts.port)
   const webEnabled = daemonOpts.web !== false
   cliOverrides.web = { port: webPort, enabled: webEnabled }
 
@@ -295,4 +298,4 @@ async function runDaemon(
   await startGateway(config)
 }
 
-program.parse()
+await program.parseAsync()

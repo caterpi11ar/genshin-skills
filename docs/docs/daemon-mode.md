@@ -23,9 +23,13 @@ giclaw daemon --no-web
 - **任务**：执行 `tasks.enabled`；默认运行全部 5 个已验收奖励任务
 - **TUI**：TTY 环境自动渲染 ink 仪表盘
 - **非 TTY**：回退到纯日志输出
-- **Web 面板**：默认启用，监听端口 3000
+- **Web 面板**：默认启用，仅监听 `127.0.0.1:3000`；页面会取得进程级 HttpOnly 同源会话 Cookie，API 与 WebSocket 同时校验 Host、Origin 和会话
 
-如果定时任务只需要月卡和邮件，将 `tasks.enabled` 调整为 `daily` 中的两个任务。不要直接复制默认 `full`：它仍包含当前暂停的探索派遣能力。
+如果定时任务只需要月卡和邮件，将 `tasks.enabled` 调整为 `daily` 中的两个任务。`rewards` 与 `full` 默认都只包含 5 个已验收奖励任务，暂停的探索派遣不会被调度。
+
+Web 面板以“当前机器是可信的单用户工作站”为支持边界。loopback、Host、Origin 和 SameSite 校验用于阻止远程访问、DNS rebinding 与恶意网页跨站调用，不用于隔离同机的其他系统用户或已取得当前用户权限的本地进程；共享主机应使用 `--no-web`。
+
+收到 SIGINT 或 SIGTERM 后，daemon 会先停止接收新任务并取消当前登录或执行，再关闭浏览器与 Web 服务。为避免未知页面上的副作用继续发生，等待中的任务不会在关停阶段启动。
 
 ## 自定义调度
 

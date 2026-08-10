@@ -1,5 +1,6 @@
 import type { Page } from 'playwright'
-import { mkdir } from 'node:fs/promises'
+import { join } from 'node:path'
+import { atomicWritePrivateFile } from '../config/paths.js'
 import { logger } from '../utils/logger.js'
 
 /**
@@ -18,10 +19,11 @@ export async function saveScreenshot(
   dir: string,
   label: string,
 ): Promise<string> {
-  await mkdir(dir, { recursive: true })
   const ts = new Date().toISOString().replace(/[:.]/g, '-')
-  const path = `${dir}/${label}-${ts}.png`
-  await page.screenshot({ path })
+  const safeLabel = label.replace(/[^\w-]+/g, '-').replace(/^-+|-+$/g, '') || 'screenshot'
+  const path = join(dir, `${safeLabel}-${ts}.png`)
+  const buffer = await page.screenshot()
+  await atomicWritePrivateFile(path, buffer)
   logger.info(`Screenshot saved: ${path}`)
   return path
 }

@@ -11,7 +11,7 @@ title: 架构
 CLI / Cron / HTTP API
         │
         ▼
-Gateway ──► FIFO Queue（daemon/API）
+Gateway ──► FIFO Queue（CLI / daemon / API 共用）
         │
         ├─ 加载并严格校验 SKILL.md
         ├─ 递归展开 dependsOn，去重并排序
@@ -19,7 +19,7 @@ Gateway ──► FIFO Queue（daemon/API）
 SessionManager ──► Cookie 恢复 / 可见窗口人工登录
         │
         ▼
-TaskRunner（顺序执行、超时、重试）
+TaskRunner（顺序执行、取消、超时、失败即停）
         │
         ▼
 StepExecutor
@@ -40,8 +40,12 @@ StepExecutor
 - `dependsOn` 会自动加入前置技能。例如运行 `claim-mail` 会先运行 `welkin-moon`。
 - 同一 ID 出现在多个 `skillsDirs` 时，后面的目录覆盖前面的目录，允许用户定制内置技能。
 - 未知任务、空 Steps、未知原子操作、目录名与 ID 不一致、依赖环都会在启动或 dry-run 阶段失败。
-- 单技能失败会按 `retries` 重试；最终失败不会阻止后续独立技能执行。
-- CLI `run` 直接执行；daemon 和 HTTP API 使用有最大深度限制的串行 FIFO 队列。
+- UI 工作流不做自动重试；任一技能失败都会停止整次运行，避免在未知界面继续操作。
+- CLI、定时任务和 HTTP API 共享同一个有最大深度限制的串行 FIFO 队列，登录、浏览器操作、Cookie 与持久化不会并发重叠。
+- 超时或关停会向登录、模型请求、等待和步骤执行传播取消信号；单个视觉等待最多占用 3 分钟，并为诊断与清理保留总预算。长等待每 15 秒上报一次进度，不响应取消的执行会在有限清理窗口后被隔离，后续任务不得继续启动。
+- 任务执行全部完成即进入不可取消的提交阶段：必须先确认浏览器关闭，再记录并返回结果；此后到达的关停信号不会把已发生的领取误报为失败并诱导重复执行。
+- 按键或鼠标长按会在成功、失败、超时和取消路径中对称释放。
+- API Key、Cookie、transcript、截图和状态文件使用仅当前用户可读写的权限；日志与持久化记录会对常见凭据格式递归脱敏，Midscene 自带的未脱敏追加日志在本项目进程内关闭。
 
 ## 可验证边界
 

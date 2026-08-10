@@ -11,7 +11,7 @@ Genshin Impact Claw（`giclaw`）是专为原神服务的智能体。它通过�
 
 ## 环境要求
 
-- **Node.js >= 20**
+- **Node.js >= 20.9**
 
 ## 安装
 
@@ -71,7 +71,7 @@ giclaw run --routine daily
 giclaw run --routine rewards
 ```
 
-不指定参数的 `giclaw run` 与 `rewards` 都会运行 5 个默认任务；`daily` 只运行月卡和邮件。`full` 当前仍包含暂停的探索派遣能力，不建议直接使用。
+不指定参数的 `giclaw run`、`rewards` 与 `full` 都会运行 5 个已验收任务；`daily` 只运行月卡和邮件。暂停的探索派遣能力已从全部默认命名流程移除。
 
 ## 从源码安装（开发）
 
@@ -90,10 +90,10 @@ pnpm build
 # 单次运行
 pnpm start
 
-# Dev loop（auto-reload on TS changes）
+# 直接运行 TypeScript 源码
 pnpm dev
 ```
 
-`pnpm dev` 通过 `tsx watch` 直接运行 TypeScript。`pnpm build` 产出 `dist/`，通过 `pnpm start` 或全局 `giclaw` 命令运行。
+`pnpm dev` 通过 `tsx` 直接运行 TypeScript 源码，不会自动监听文件变化。`pnpm build` 产出 `dist/`，通过 `pnpm start` 或全局 `giclaw` 命令运行。
 
 </details>

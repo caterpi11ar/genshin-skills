@@ -83,6 +83,4 @@ giclaw daemon --port 8080
 giclaw daemon --no-web
 ```
 
-:::warning
-默认 `full` 流程仍包含已暂停的 `expedition-collect`。当前需要完整奖励领取时请使用 `rewards`，不要直接运行 `full`。
-:::
+`rewards` 与 `full` 默认都只选择 5 个已验收奖励任务；暂停的 `expedition-collect` 不在任何默认命名流程中。

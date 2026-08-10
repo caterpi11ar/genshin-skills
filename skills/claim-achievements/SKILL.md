@@ -4,14 +4,14 @@ name: Claim Achievement Rewards
 description: Open the achievements interface and claim all available Primogem rewards.
 enabled: true
 timeoutMs: 300000
-retries: 1
+retries: 0
 dependsOn:
   - welkin-moon
 ---
 
 ## Background
 
-游戏已经进入主界面。成就入口位于派蒙菜单；有奖励可领时会出现红点。该技能只领取已经完成的成就，不改变展示成就等其他设置。
+游戏已经进入主界面。成就入口位于派蒙菜单；有奖励可领时会出现红点。只领取已经完成的成就，不改变展示成就等其他设置。
 
 ## Goal
 

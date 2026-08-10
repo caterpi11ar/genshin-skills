@@ -26,12 +26,21 @@ export interface GatewaySnapshot {
   currentReason: string | null
 }
 
+export interface EnqueuedRunReceipt {
+  status: 'started' | 'queued'
+  completion: Promise<RunResult>
+}
+
 export interface IGateway {
   getSnapshot: () => GatewaySnapshot
   enqueueRun: (
     trigger: 'cron' | 'manual' | 'api',
     taskIds?: string[],
   ) => Promise<RunResult>
+  enqueueRunAccepted: (
+    trigger: 'cron' | 'manual' | 'api',
+    taskIds?: string[],
+  ) => EnqueuedRunReceipt
   runOnce: (taskIds?: string[]) => Promise<RunResult>
   getRunHistory: (limit?: number) => Promise<RunSummary[]>
   start: () => Promise<void>

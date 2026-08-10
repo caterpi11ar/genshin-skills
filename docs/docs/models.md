@@ -119,6 +119,7 @@ giclaw 通过 `POST {baseUrl}/chat/completions` 发送请求，消息体包含 `
 ## 配置检查
 
 - `baseUrl` 应包含兼容服务要求的 `/v1` 前缀，项目会在其后请求 `/chat/completions`。
+- 远程 `baseUrl` 必须使用 HTTPS，避免 API Key 明文传输；仅 `127.0.0.1`、`localhost` 和 `::1` 可以使用 HTTP。
 - `model.name` 必须与带鉴权访问 `/v1/models` 时返回的 ID 完全一致。
 - 5.x 兼容模型将 `family` 设为 `gpt-5`，使 Midscene 使用正确的模型家族适配。
 - 上游拒绝非流式请求时设置 `stream: true`；这不会切换到 Responses API。
